@@ -6,10 +6,19 @@ import { listGameShips, type ShipInfo } from '@/api/projects'
 import { showError } from '@/alerts'
 import ShipThumbnail from '@/components/ShipThumbnail.vue'
 import { Game } from '@/game/Game'
+import { requestTiltPermission } from '@/game/tilt'
+import { toggleFullscreen, type TouchMode } from '@/game/touchInput'
+import { showAlert } from '@/alerts'
 import { session } from '@/session'
 
 const GUEST_NAME_KEY = 'ships3d.guestName'
 const SHIP_KEY = 'ships3d.lastShip'
+const TOUCH_MODE_KEY = 'ships3d.touchMode'
+
+// A phone or tablet: its main pointer is a finger. They get on-screen
+// controls (and the choice of steering by tilting the device).
+const isTouch = window.matchMedia?.('(pointer: coarse)').matches ?? false
+const touchMode = ref<TouchMode>(readStorage(TOUCH_MODE_KEY) === 'tilt' ? 'tilt' : 'stick')
 
 const defaults = ref<ShipInfo[]>([])
 const own = ref<ShipInfo[]>([])
@@ -42,6 +51,22 @@ async function start() {
   if (!selectedId.value) return
   writeStorage(SHIP_KEY, selectedId.value)
   if (!session.user) writeStorage(GUEST_NAME_KEY, guestName.value)
+  if (isTouch) {
+    // Full screen and (on iOS) the motion-sensor prompt are only allowed
+    // during the tap itself, so both start before anything is awaited.
+    const fullscreen = document.fullscreenElement
+      ? Promise.resolve()
+      : toggleFullscreen(document.documentElement)
+    const tiltAllowed = touchMode.value === 'tilt' ? requestTiltPermission() : Promise.resolve(true)
+    await fullscreen
+    if (!(await tiltAllowed)) {
+      showAlert(
+        'info',
+        'Motion sensors are not available or not allowed: using the on-screen stick.',
+      )
+      setTouchMode('stick')
+    }
+  }
   playing.value = true
   await nextTick()
   game = new Game(gameContainer.value!, {
@@ -49,7 +74,13 @@ async function start() {
     shipId: selectedId.value,
     name: guestName.value,
     onExit: stop,
+    touch: isTouch ? { mode: touchMode.value, onModeChange: setTouchMode } : undefined,
   })
+}
+
+function setTouchMode(mode: TouchMode) {
+  touchMode.value = mode
+  writeStorage(TOUCH_MODE_KEY, mode)
 }
 
 // The Game owns a render loop, a socket and window listeners that outlive
@@ -90,6 +121,27 @@ function writeStorage(key: string, value: string) {
         <input v-model="guestName" maxlength="20" placeholder="Guest" />
       </label>
       <p v-else class="muted">Playing as {{ session.user.username }}</p>
+      <div v-if="isTouch" class="steer" role="radiogroup" aria-label="Steer with">
+        <span class="muted">Steer with</span>
+        <button
+          type="button"
+          :class="{ active: touchMode === 'stick' }"
+          :aria-checked="touchMode === 'stick'"
+          role="radio"
+          @click="setTouchMode('stick')"
+        >
+          🕹 Stick
+        </button>
+        <button
+          type="button"
+          :class="{ active: touchMode === 'tilt' }"
+          :aria-checked="touchMode === 'tilt'"
+          role="radio"
+          @click="setTouchMode('tilt')"
+        >
+          📱 Tilt
+        </button>
+      </div>
       <button class="primary" type="submit" :disabled="!selectedId">Launch</button>
     </form>
 
@@ -148,6 +200,15 @@ function writeStorage(key: string, value: string) {
   align-items: flex-end;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+.steer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.steer button.active {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .guest {
   display: flex;

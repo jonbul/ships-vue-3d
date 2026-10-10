@@ -13,9 +13,11 @@ import { buildShip } from '@/shared/shipMesh'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
 import { Hud, type Marker } from './hud'
-import { KeyboardMouseInput, type InputSource } from './input'
+import { CombinedInput, KeyboardMouseInput, type InputSource } from './input'
 import { Connection } from './net'
 import type { PlayerInfo, PlayerState, Q4, ServerMessage, Settings, V3 } from './protocol'
+import { Radar } from './radar'
+import { TouchInput, type TouchMode } from './touchInput'
 import { World } from './world'
 
 export interface GameOptions {
@@ -26,6 +28,15 @@ export interface GameOptions {
   name: string
   /** The player chose to leave, or the game ended (e.g. disconnected). */
   onExit(): void
+  /**
+   * Phone controls. Absent: keyboard and mouse only (desktop). The host
+   * decides (e.g. from a coarse pointer) and may remember the mode the player
+   * switches to.
+   */
+  touch?: {
+    mode: TouchMode
+    onModeChange(mode: TouchMode): void
+  }
 }
 
 /** How long, in seconds, a remote ship keeps moving on its last reported velocity. */
@@ -34,6 +45,13 @@ const MAX_EXTRAPOLATION = 0.5
 const REMOTE_SMOOTHING = 12
 const CAMERA_POSITION_SMOOTHING = 6
 const CAMERA_ROTATION_SMOOTHING = 8
+/** Gap, in CSS pixels, between the radar and the edges of the screen. */
+const RADAR_MARGIN = 16
+/**
+ * How strongly the ship accelerates towards a target speed (the touch
+ * throttle): full thrust when this fraction of a second of acceleration away.
+ */
+const SPEED_TARGET_RESPONSE = 0.3
 
 interface Ship {
   info: PlayerInfo
@@ -75,6 +93,7 @@ export class Game {
   private readonly effects: Effects
   private readonly resizeObserver: ResizeObserver
   private world: World | null = null
+  private readonly radar = new Radar()
 
   private settings: Settings | null = null
   private myId = ''
@@ -117,9 +136,28 @@ export class Game {
     this.hud = new Hud(this.root, {
       onLeave: () => this.exit(),
       onRespawn: () => this.requestRespawn(),
+      onRadarTap: () => this.radar.cycle(),
     })
     this.hintTimer = setTimeout(() => this.hud.setHintVisible(false), 15000)
-    this.input = new KeyboardMouseInput(this.renderer.domElement)
+    if (options.touch) {
+      // Phones: on-screen controls (and sensors), plus the keyboard for
+      // tablets with one. The mouse is left out: taps arrive as emulated
+      // mouse events too.
+      this.root.classList.add('touch-layout')
+      this.hud.setHint(
+        'Left: throttle · stick or tilt to steer · ⟲ ⟳ roll · FIRE · tap the radar to change its range',
+      )
+      this.input = new CombinedInput([
+        new KeyboardMouseInput(this.renderer.domElement, false),
+        new TouchInput(this.root, {
+          mode: options.touch.mode,
+          onModeChange: options.touch.onModeChange,
+          onNotice: (text) => this.hud.message(text),
+        }),
+      ])
+    } else {
+      this.input = new KeyboardMouseInput(this.renderer.domElement)
+    }
     window.addEventListener('keydown', this.onKeyDown)
     document.addEventListener('visibilitychange', this.onVisibilityChange)
 
@@ -131,7 +169,12 @@ export class Game {
       onOpen: () =>
         this.connection.send({ type: 'join', shipId: options.shipId, name: options.name }),
       onMessage: (message) => this.handle(message),
-      onClose: () => this.end('Disconnected from the server.'),
+      // Closed before the welcome: it never connected, which is usually the
+      // server being down or its certificate not trusted for this address.
+      onClose: () =>
+        this.end(
+          this.settings ? 'Disconnected from the server.' : 'Could not connect to the game server.',
+        ),
     })
 
     this.lastFrameTime = performance.now()
@@ -150,6 +193,7 @@ export class Game {
     this.input.dispose()
     this.hud.destroy()
     this.effects.dispose()
+    this.radar.dispose()
     this.world?.dispose()
     // Ship meshes share geometries and materials owned by shipMesh.ts,
     // which must outlive this game: only the renderer's GPU copies go.
@@ -340,12 +384,45 @@ export class Game {
     this.lastFrameTime = time
     if (this.settings && this.me) this.update(dt, time, this.settings, this.me)
     this.renderer.render(this.scene, this.camera)
+    if (this.me) {
+      const size = this.radarSize()
+      const x = this.root.clientWidth - size - RADAR_MARGIN
+      // Bottom right, except on phones, where the fire button lives: there
+      // it goes top right. The renderer counts y from the bottom.
+      const top = this.options.touch !== undefined
+      const y = top ? this.root.clientHeight - size - RADAR_MARGIN : RADAR_MARGIN
+      this.radar.render(this.renderer, x, y, size)
+      this.hud.setRadar(size, RADAR_MARGIN, top, this.radar.range)
+    }
+  }
+
+  /** The radar's side in CSS pixels: about a quarter of the short side of the screen. */
+  private radarSize(): number {
+    const short = Math.min(this.root.clientWidth, this.root.clientHeight)
+    const min = this.options.touch ? 90 : 110
+    return Math.round(Math.min(210, Math.max(min, short * 0.26)))
+  }
+
+  /** Where every live enemy is, for the radar. */
+  private *contacts(): Generator<Vector3> {
+    for (const remote of this.remotes.values()) {
+      if (!remote.info.dead) yield remote.group.position
+    }
   }
 
   private update(dt: number, now: number, settings: Settings, me: Ship): void {
     const input = this.input.read(dt)
 
     if (this.alive) {
+      if (input.speedTarget !== undefined) {
+        // A held speed (the touch throttle): accelerate towards it, easing
+        // off as it gets close.
+        const gap = input.speedTarget * settings.maxSpeed - this.flight.speed
+        input.throttle = Math.max(
+          -1,
+          Math.min(1, gap / (settings.acceleration * SPEED_TARGET_RESPONSE)),
+        )
+      }
       stepFlight(this.flight, input, settings, dt)
       me.group.position.copy(this.flight.position)
       me.group.quaternion.copy(this.flight.quaternion)
@@ -368,6 +445,7 @@ export class Game {
     this.hud.setSpeed(this.flight.speed)
     this.hud.setBoundaryWarning(this.flight.position.length() > settings.worldRadius * 0.92)
     this.hud.setMarkers(this.markers())
+    this.radar.update(this.flight.position, this.flight.quaternion, this.contacts())
     this.hud.showScoreboard(
       input.scoreboard || !this.alive,
       input.scoreboard || !this.alive ? this.scores() : [],
@@ -565,6 +643,9 @@ export class Game {
     if (event.code === 'Enter' && !this.alive && this.settings) {
       if (performance.now() >= this.diedAt + this.settings.respawnDelayMs) this.requestRespawn()
     }
+    // + zooms in (shorter range), - zooms out.
+    if (event.code === 'Equal' || event.code === 'NumpadAdd') this.radar.zoomIn()
+    if (event.code === 'Minus' || event.code === 'NumpadSubtract') this.radar.zoomOut()
   }
 
   // Bullets drawn here move only while frames are rendered; after time in a

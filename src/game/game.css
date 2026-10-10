@@ -122,6 +122,19 @@
   text-align: center;
 }
 
+.hud-radar-label {
+  position: absolute;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: center;
+  font: inherit;
+  font-size: 0.75rem;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
 .hud-scoreboard {
   position: absolute;
   top: 50%;
@@ -204,4 +217,184 @@
 }
 .hud-marker.offscreen .hud-marker-life {
   display: none;
+}
+
+/* --- Phones (Game options.touch): on-screen controls ---------------------- */
+
+/* Landscape, thumbs on the lower corners: throttle on the left edge, stick
+   next to it, fire and roll bottom right. The radar moves to the top right
+   (drawn by the game), and the kill feed to the top centre. */
+.touch-layout .hud-feed {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+.touch-layout .hud-hint {
+  /* Top centre, under the tools row: the bottom of the screen belongs to
+     the thumbs. */
+  top: calc(max(0.8rem, env(safe-area-inset-top)) + 5.6rem);
+  bottom: auto;
+  max-width: 45%;
+  font-size: 0.75rem;
+}
+.touch-layout .hud-crosshair {
+  opacity: 0.6;
+}
+.touch-layout .hud-life {
+  width: 7rem;
+}
+
+.touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #e6ecf5;
+  font-family: system-ui, sans-serif;
+  --edge: max(0.8rem, env(safe-area-inset-left));
+  --edge-right: max(0.8rem, env(safe-area-inset-right));
+  --edge-bottom: max(0.8rem, env(safe-area-inset-bottom));
+}
+.touch-controls [hidden] {
+  display: none !important;
+}
+.touch-controls button,
+.touch-throttle,
+.touch-stick {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-controls button {
+  border: 1px solid rgb(255 255 255 / 0.35);
+  background: rgb(10 14 23 / 0.45);
+  color: inherit;
+  font: inherit;
+}
+.touch-controls button.pressed {
+  background: rgb(79 195 247 / 0.45);
+  border-color: #4fc3f7;
+}
+
+.touch-tools {
+  position: absolute;
+  top: calc(max(0.8rem, env(safe-area-inset-top)) + 2.6rem);
+  left: var(--edge);
+  display: flex;
+  gap: 0.4rem;
+}
+.touch-tool {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.touch-throttle {
+  position: absolute;
+  left: var(--edge);
+  bottom: var(--edge-bottom);
+  width: 2.8rem;
+  height: min(55vh, 14rem);
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 1.4rem;
+  background: rgb(10 14 23 / 0.45);
+}
+.touch-throttle-zero {
+  position: absolute;
+  left: 0.3rem;
+  right: 0.3rem;
+  height: 0;
+  border-top: 1px dashed rgb(255 255 255 / 0.5);
+}
+.touch-throttle-thumb {
+  position: absolute;
+  left: 0.25rem;
+  right: 0.25rem;
+  /* THUMB_HEIGHT in touchInput.ts. */
+  height: 2.2rem;
+  border-radius: 1.1rem;
+  background: #4fc3f7;
+  opacity: 0.85;
+}
+.touch-throttle.reverse .touch-throttle-thumb {
+  background: #ffb74d;
+}
+
+.touch-stick {
+  position: absolute;
+  left: calc(var(--edge) + 4rem);
+  bottom: var(--edge-bottom);
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 50%;
+  background: rgb(10 14 23 / 0.35);
+}
+.touch-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3.6rem;
+  height: 3.6rem;
+  margin: -1.8rem 0 0 -1.8rem;
+  border-radius: 50%;
+  background: rgb(79 195 247 / 0.7);
+  pointer-events: none;
+}
+.touch-controls[data-mode='tilt'] .touch-stick {
+  display: none;
+}
+
+.touch-actions {
+  position: absolute;
+  right: var(--edge-right);
+  bottom: var(--edge-bottom);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    'left right'
+    'fire fire';
+  gap: 0.5rem;
+  justify-items: center;
+}
+.touch-roll {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  font-size: 1.5rem;
+}
+.touch-roll:first-child {
+  grid-area: left;
+}
+.touch-fire {
+  grid-area: fire;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  border-color: #ff5252 !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.touch-fire.pressed {
+  background: rgb(255 82 82 / 0.5) !important;
+}
+
+.touch-rotate-hint {
+  display: none;
+}
+@media (orientation: portrait) {
+  .touch-rotate-hint {
+    display: block;
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.55);
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
 }

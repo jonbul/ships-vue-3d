@@ -7,14 +7,41 @@ export const API_URL =
 
 export const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws'
 
+/** A link that helps the user fix an error themselves. */
+export interface HelpLink {
+  href: string
+  text: string
+}
+
 /** A failed request, with the server's messages when it sent any. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly messages: string[],
+    readonly help?: HelpLink,
   ) {
     super(messages.join(' ') || `Request failed (${status})`)
   }
+}
+
+/**
+ * The request never got an answer. The usual cause on this deployment is a
+ * certificate the browser doesn't trust for the API's address - e.g. the
+ * site opened by IP while the certificate names the domain. A page can be
+ * clicked through, but its fetch() calls to another origin (the API's port)
+ * fail silently, so the way out is to open the API once and accept it there.
+ */
+function unreachable(): ApiError {
+  return new ApiError(
+    0,
+    [
+      `Could not reach the server at ${API_URL}.`,
+      'If it is running, your browser may not trust its certificate for this address ' +
+        '(for example when the site is opened by IP address). Open the link below, accept ' +
+        'the certificate, then reload this page - or open the site by its domain name.',
+    ],
+    { href: `${API_URL}/status`, text: `Open ${API_URL}/status` },
+  )
 }
 
 export async function request<T>(
@@ -30,7 +57,7 @@ export async function request<T>(
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
   } catch {
-    throw new ApiError(0, ['Could not reach the server.'])
+    throw unreachable()
   }
   const text = await response.text()
   let data: unknown = null
