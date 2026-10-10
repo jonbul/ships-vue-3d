@@ -34,6 +34,10 @@ Phones
   the game falls back to the stick and says so.
 
 Bugfixes
+- Position updates are no longer queued while the connection is backed up
+  (a stalled mobile network): they are snapshots, each replacing the last,
+  and the queued pile used to arrive all at once and trip the server's flood
+  protection, disconnecting phone players within seconds.
 - "Could not reach the server" now explains the usual cause on the home
   server - a certificate the browser doesn't trust for the address the site
   was opened at, e.g. by IP - with a link to open the API and accept it. The
