@@ -7,6 +7,9 @@ import { alerts, dismissAlert } from '@/alerts'
     <div v-for="alert in alerts" :key="alert.id" class="alert" :class="alert.kind">
       <button type="button" aria-label="Close" @click="dismissAlert(alert.id)">&times;</button>
       <p v-for="(message, i) in alert.messages" :key="i">{{ message }}</p>
+      <p v-if="alert.help">
+        <a :href="alert.help.href" target="_blank" rel="noopener">{{ alert.help.text }}</a>
+      </p>
     </div>
   </div>
 </template>

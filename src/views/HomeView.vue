@@ -32,6 +32,13 @@ import { session } from '@/session'
         <dd>Fire</dd>
         <dt>Tab</dt>
         <dd>Scoreboard</dd>
+        <dt>+ / -</dt>
+        <dd>Radar range (or click the radar's caption)</dd>
+        <dt>Phone</dt>
+        <dd>
+          Throttle slider on the left, fire and roll on the right; steer with the on-screen stick or
+          by tilting the phone (switch any time)
+        </dd>
       </dl>
     </section>
   </div>

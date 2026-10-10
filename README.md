@@ -30,8 +30,10 @@ dev server must be HTTPS because the session cookie is `Secure`.
 - `src/game/` — the game. **No Vue, no router, no app state**: only
   three.js and the DOM, so it can be embedded in a phone app's webview later.
   `Game` takes a container and options and must be `destroy()`ed. Input sits
-  behind `InputSource`, so touch controls can be added without touching the
-  game. The protocol (`protocol.ts`) mirrors `ships-go-3d/game/protocol.go`.
+  behind `InputSource`: `KeyboardMouseInput` (desktop) and `TouchInput`
+  (phones: throttle slider, fire/roll, and a stick or tilt via `tilt.ts`),
+  merged by `CombinedInput`. The host turns phone controls on with
+  `options.touch` (GameView does it for a coarse pointer). The protocol (`protocol.ts`) mirrors `ships-go-3d/game/protocol.go`.
 
 ## Conventions
 

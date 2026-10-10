@@ -3,6 +3,7 @@ import './game.css'
 export interface HudActions {
   onLeave(): void
   onRespawn(): void
+  onRadarTap(): void
 }
 
 export interface ScoreRow {
@@ -46,6 +47,8 @@ export class Hud {
   private readonly deathText: HTMLParagraphElement
   private readonly respawnButton: HTMLButtonElement
   private readonly hint: HTMLDivElement
+  private readonly radarLabel: HTMLButtonElement
+  private radarLayout = ''
   private readonly markers = new Map<string, HTMLDivElement>()
   private readonly markerLayer: HTMLDivElement
 
@@ -74,7 +77,13 @@ export class Hud {
 
     this.hint = el('div', 'hud-hint', this.root)
     this.hint.textContent =
-      'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · Tab scores'
+      'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · Tab scores · +/- radar range'
+
+    // A button: tapping the radar's caption cycles its range (phones have no
+    // +/- keys; it works with a mouse too).
+    this.radarLabel = el('button', 'hud-radar-label', this.root)
+    this.radarLabel.title = 'Change the radar range (+ / -)'
+    this.radarLabel.addEventListener('click', () => actions.onRadarTap())
 
     this.scoreboard = el('div', 'hud-scoreboard', this.root)
     const table = el('table', '', this.scoreboard)
@@ -112,6 +121,10 @@ export class Hud {
 
   setBoundaryWarning(visible: boolean): void {
     this.warning.hidden = !visible
+  }
+
+  setHint(text: string): void {
+    this.hint.textContent = text
   }
 
   setHintVisible(visible: boolean): void {
@@ -153,6 +166,22 @@ export class Hud {
 
   hideDeath(): void {
     this.death.hidden = true
+  }
+
+  /**
+   * Positions the radar's caption next to the radar the game draws in the
+   * right-hand corner: above it at the bottom, below it at the top.
+   */
+  setRadar(size: number, margin: number, atTop: boolean, range: number): void {
+    const layout = `${size}:${margin}:${atTop}:${range}`
+    if (layout === this.radarLayout) return
+    this.radarLayout = layout
+    const label = this.radarLabel.style
+    label.width = `${size}px`
+    label.right = `${margin}px`
+    label.top = atTop ? `${margin + size}px` : ''
+    label.bottom = atTop ? '' : `${margin + size}px`
+    this.radarLabel.textContent = `Radar · ${range} u`
   }
 
   setMarkers(markers: Marker[]): void {

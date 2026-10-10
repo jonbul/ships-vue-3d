@@ -21,6 +21,9 @@ coverage
 
 # Vite
 *.timestamp-*-*.mjs
+# Vite's dependency cache lands here instead of node_modules/.vite when it
+# starts without finding package.json (e.g. mid branch switch)
+.vite
 
 # SSL (symlink to ../files/ssl, which lives outside the repo)
 ssl

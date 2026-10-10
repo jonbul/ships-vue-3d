@@ -4,12 +4,18 @@ export interface InputState extends Controls {
   fire: boolean
   /** Held to show the scoreboard. */
   scoreboard: boolean
+  /**
+   * A speed to hold, as a fraction of the maximum (negative: reverse), for
+   * controls that set a speed rather than accelerate, like the on-screen
+   * throttle slider. When set, the game derives `throttle` from it.
+   */
+  speedTarget?: number
 }
 
 /**
- * Anything that can fly a ship. Keyboard + mouse is the only one today; a
- * touch implementation (virtual stick + fire button) can be added for phones
- * without the game itself changing.
+ * Anything that can fly a ship: keyboard + mouse (KeyboardMouseInput), the
+ * on-screen controls and motion sensors of a phone (TouchInput), or several
+ * at once (CombinedInput). The game only ever sees InputState.
  */
 export interface InputSource {
   /** The controls for this frame. */
@@ -34,7 +40,14 @@ export class KeyboardMouseInput implements InputSource {
   private mouseFire = false
   private readonly cleanup: Array<() => void> = []
 
-  constructor(private readonly element: HTMLElement) {
+  /**
+   * `mouse: false` leaves the mouse alone: on a touch screen, taps arrive as
+   * emulated mouse events too, and must not capture the pointer or fire.
+   */
+  constructor(
+    private readonly element: HTMLElement,
+    private readonly mouse = true,
+  ) {
     this.listen(window, 'keydown', this.onKeyDown)
     this.listen(window, 'keyup', this.onKeyUp)
     this.listen(window, 'blur', this.releaseAll)
@@ -98,7 +111,7 @@ export class KeyboardMouseInput implements InputSource {
   }
 
   private onMouseDown = (event: MouseEvent): void => {
-    if (event.button !== 0) return
+    if (!this.mouse || event.button !== 0) return
     // The first click only captures the mouse; it doesn't fire.
     if (!this.locked) {
       void this.element.requestPointerLock()
@@ -123,5 +136,40 @@ export class KeyboardMouseInput implements InputSource {
   private releaseAll = (): void => {
     this.keys.clear()
     this.mouseFire = false
+  }
+}
+
+/** Several sources flying one ship: axes add up, buttons are held if any holds them. */
+export class CombinedInput implements InputSource {
+  constructor(private readonly sources: InputSource[]) {}
+
+  read(dt: number): InputState {
+    const state: InputState = {
+      pitch: 0,
+      yaw: 0,
+      roll: 0,
+      throttle: 0,
+      fire: false,
+      scoreboard: false,
+    }
+    for (const source of this.sources) {
+      const s = source.read(dt)
+      state.pitch += s.pitch
+      state.yaw += s.yaw
+      state.roll += s.roll
+      state.throttle += s.throttle
+      state.fire ||= s.fire
+      state.scoreboard ||= s.scoreboard
+      state.speedTarget ??= s.speedTarget
+    }
+    state.pitch = clamp(state.pitch, -1, 1)
+    state.yaw = clamp(state.yaw, -1, 1)
+    state.roll = clamp(state.roll, -1, 1)
+    state.throttle = clamp(state.throttle, -1, 1)
+    return state
+  }
+
+  dispose(): void {
+    for (const source of this.sources) source.dispose()
   }
 }
