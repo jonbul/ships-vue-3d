@@ -1,6 +1,6 @@
 CHANGES
 =======
-Version 0.2.0 - 2026-10-XX
+Version 0.2.0 - 2026-10-10
 ------------------
 A 3D sphere radar, and the game made playable on phones: steer with an
 on-screen stick or by tilting the phone, and switch between the two at any
