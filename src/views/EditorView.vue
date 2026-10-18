@@ -4,7 +4,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { getProject, saveProject } from '@/api/projects'
 import { showAlert, showError } from '@/alerts'
-import { Editor, type GizmoMode, type PartRef } from '@/editor/Editor'
+import { AXIS_COLORS, Editor, type GizmoMode, type PartRef } from '@/editor/Editor'
 import { History } from '@/editor/history'
 import {
   LIMITS,
@@ -516,6 +516,12 @@ function onKeyDown(event: KeyboardEvent) {
           </select>
         </label>
 
+        <div class="vector axes" aria-hidden="true">
+          <span />
+          <span v-for="(axis, i) in ['X', 'Y', 'Z']" :key="axis" :style="{ color: AXIS_COLORS[i] }">
+            {{ axis }}
+          </span>
+        </div>
         <div
           v-for="[field, label, step] in [
             ['position', 'Position', 0.25],
@@ -533,6 +539,7 @@ function onKeyDown(event: KeyboardEvent) {
             :step="step"
             :aria-label="`${label} ${axis}`"
             :title="axis"
+            :style="{ borderLeftColor: AXIS_COLORS[i] }"
             :value="displayValue(field, i)"
             @input="setVector(field, i, $event, false)"
             @change="setVector(field, i, $event, true)"
@@ -581,7 +588,10 @@ function onKeyDown(event: KeyboardEvent) {
           Add a part from the left, or click one in the view. Drag to orbit, right-drag to pan,
           scroll to zoom.
         </p>
-        <p class="muted">The blue arrow is the front of the ship.</p>
+        <p class="muted">
+          The blue arrow is the front of the ship. The red line is the X axis, green is Y and blue
+          is Z, the same colors as the X, Y and Z fields.
+        </p>
       </template>
 
       <p class="muted size">
@@ -739,10 +749,17 @@ button.icon {
   width: 100%;
   min-width: 0;
   padding: 0.25rem !important;
+  border-left: 3px solid;
   /* The spinner arrows took most of the room; the step still works with the
      keyboard arrows. */
   appearance: textfield;
   -moz-appearance: textfield;
+}
+.vector.axes {
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
 }
 .vector input::-webkit-inner-spin-button,
 .vector input::-webkit-outer-spin-button {

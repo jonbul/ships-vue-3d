@@ -14,6 +14,13 @@ Six new shapes in the ship designer, for more detailed ships.
 Like the other shapes, each fits a unit cube and can be mirrored. Needs
 ships-go-3d 0.3.0, which accepts the new shapes when a ship is saved.
 
+Clearer axes
+- The X, Y and Z fields for position, rotation and size are colored red,
+  green and blue, with a colored X / Y / Z header above them.
+- The editor draws the X (red), Y (green) and Z (blue) axes in the same
+  colors, matching the move/rotate/scale gizmo, so it's clear which field
+  moves a part which way. The front arrow is the same blue as Z.
+
 Version 0.2.0 - 2026-10-10
 ------------------
 A 3D sphere radar, and the game made playable on phones: steer with an

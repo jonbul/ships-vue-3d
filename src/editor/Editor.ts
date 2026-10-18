@@ -1,10 +1,14 @@
 import {
   ArrowHelper,
   Box3Helper,
+  BufferGeometry,
   Color,
   DirectionalLight,
   GridHelper,
+  Float32BufferAttribute,
   HemisphereLight,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   PerspectiveCamera,
   Raycaster,
@@ -21,6 +25,13 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js'
 
 import { applyPartTransform, createPartMesh } from '@/shared/shipMesh'
 import { LIMITS, type Layer, type Vec3 } from '@/shared/shipModel'
+
+/**
+ * Axis colors, shared with the X/Y/Z fields of the part panel so they can be
+ * told apart at a glance. Close to the gizmo's own red, green and blue, but
+ * light enough to read as text on the dark panel.
+ */
+export const AXIS_COLORS = ['#ff5c5c', '#5cd65c', '#4f8bff'] as const
 
 export interface PartRef {
   layer: number
@@ -91,9 +102,17 @@ export class Editor {
 
     const grid = new GridHelper(40, 40, 0x3a4766, 0x1c2438)
     this.scene.add(grid)
+    this.scene.add(createAxisLines())
     // The nose of every ship points along +Z: show it, since it decides
     // which way the ship flies in game.
-    const front = new ArrowHelper(new Vector3(0, 0, 1), new Vector3(0, 0, 0), 8, 0x4fc3f7, 1, 0.6)
+    const front = new ArrowHelper(
+      new Vector3(0, 0, 1),
+      new Vector3(0, 0, 0),
+      8,
+      AXIS_COLORS[2],
+      1,
+      0.6,
+    )
     this.scene.add(front)
 
     this.selectionBox.visible = false
@@ -290,4 +309,27 @@ export class Editor {
       if (!this.destroyed) this.renderer.render(this.scene, this.camera)
     })
   }
+}
+
+/**
+ * The X axis across the grid, the Z axis along it and a short Y axis up, in
+ * AXIS_COLORS. Lifted a hair above the grid so they don't flicker against
+ * its centre lines.
+ */
+function createAxisLines(): LineSegments {
+  const lift = 0.002
+  // prettier-ignore
+  const ends = [
+    [-20, lift, 0], [20, lift, 0],
+    [0, 0, 0], [0, 4, 0],
+    [0, lift, -20], [0, lift, 20],
+  ]
+  const colors = [0, 0, 1, 1, 2, 2].map((axis) => new Color(AXIS_COLORS[axis]).toArray())
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(ends.flat(), 3))
+  geometry.setAttribute('color', new Float32BufferAttribute(colors.flat(), 3))
+  return new LineSegments(
+    geometry,
+    new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 }),
+  )
 }
