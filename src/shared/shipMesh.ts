@@ -5,10 +5,12 @@ import {
   CylinderGeometry,
   Float32BufferAttribute,
   Group,
+  LatheGeometry,
   Mesh,
   MeshStandardMaterial,
   SphereGeometry,
   TorusGeometry,
+  Vector2,
 } from 'three'
 
 import { mirroredTransform, type Layer, type Part, type PartType } from './shipModel'
@@ -38,7 +40,61 @@ function createGeometry(type: PartType): BufferGeometry {
       // Outer radius 0.35 + 0.15 = 0.5, so it fits the unit cube like the
       // other parts (the bounding radius maths depends on it).
       return new TorusGeometry(0.35, 0.15, 10, 28)
+    case 'dome':
+      return createDomeGeometry()
+    case 'capsule':
+      return createCapsuleGeometry()
+    case 'pyramid':
+      // Four sides with the corners on the cube's corners: radius √½, turned
+      // 45° so the base is the full unit square.
+      return new ConeGeometry(Math.SQRT1_2, 1, 4).rotateY(Math.PI / 4)
+    case 'tube':
+      return createTubeGeometry()
+    case 'prism':
+      return new CylinderGeometry(0.5, 0.5, 1, 6)
+    case 'frustum':
+      return new CylinderGeometry(0.25, 0.5, 1, 20)
   }
+}
+
+// The lathe shapes below spin a profile in the XY plane around Y. A profile
+// that runs counter-clockwise (up the outside, back down the inside) gives
+// faces that point outwards.
+const LATHE_SEGMENTS = 20
+
+/** Half a sphere stretched to fill the cube: flat base at the bottom (-Y). */
+function createDomeGeometry(): LatheGeometry {
+  const points = [new Vector2(0, -0.5)]
+  for (let i = 0; i <= 7; i++) {
+    const angle = (i / 7) * (Math.PI / 2)
+    points.push(new Vector2(0.5 * Math.cos(angle), -0.5 + Math.sin(angle)))
+  }
+  return new LatheGeometry(points, LATHE_SEGMENTS)
+}
+
+/** A cylinder with rounded ends, each end a quarter of the height. */
+function createCapsuleGeometry(): LatheGeometry {
+  const points = [new Vector2(0, -0.5)]
+  for (let i = 1; i <= 5; i++) {
+    const angle = (i / 5) * (Math.PI / 2)
+    points.push(new Vector2(0.5 * Math.sin(angle), -0.25 - 0.25 * Math.cos(angle)))
+  }
+  for (let i = 0; i <= 5; i++) {
+    const angle = (i / 5) * (Math.PI / 2)
+    points.push(new Vector2(0.5 * Math.cos(angle), 0.25 + 0.25 * Math.sin(angle)))
+  }
+  return new LatheGeometry(points, LATHE_SEGMENTS)
+}
+
+/** A hollow cylinder, walls a fifth of its width thick. */
+function createTubeGeometry(): LatheGeometry {
+  // prettier-ignore
+  const points = [
+    new Vector2(0.5, -0.5), new Vector2(0.5, 0.5),
+    new Vector2(0.3, 0.5), new Vector2(0.3, -0.5),
+    new Vector2(0.5, -0.5),
+  ]
+  return new LatheGeometry(points, LATHE_SEGMENTS)
 }
 
 /**

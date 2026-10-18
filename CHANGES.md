@@ -1,5 +1,19 @@
 CHANGES
 =======
+Version 0.3.0 - 2026-10-18
+------------------
+Six new shapes in the ship designer, for more detailed ships.
+
+- Dome (half sphere) for cockpits and turrets.
+- Capsule (cylinder with rounded ends) for engines and fuel pods.
+- Pyramid for noses and spikes.
+- Tube (hollow cylinder) for thrusters and gun barrels.
+- Hex prism for armour plates and details.
+- Tapered cylinder for engine nozzles.
+
+Like the other shapes, each fits a unit cube and can be mirrored. Needs
+ships-go-3d 0.3.0, which accepts the new shapes when a ship is saved.
+
 Version 0.2.0 - 2026-10-10
 ------------------
 A 3D sphere radar, and the game made playable on phones: steer with an

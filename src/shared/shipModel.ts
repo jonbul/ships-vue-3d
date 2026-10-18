@@ -5,7 +5,20 @@
 // centred on its position, then scaled, rotated (XYZ Euler, radians) and
 // placed. Ships face +Z (their nose) with +Y up.
 
-export const PART_TYPES = ['box', 'sphere', 'cylinder', 'cone', 'wedge', 'torus'] as const
+export const PART_TYPES = [
+  'box',
+  'sphere',
+  'cylinder',
+  'cone',
+  'wedge',
+  'torus',
+  'dome',
+  'capsule',
+  'pyramid',
+  'tube',
+  'prism',
+  'frustum',
+] as const
 export type PartType = (typeof PART_TYPES)[number]
 
 export type Vec3 = [number, number, number]
@@ -52,6 +65,12 @@ export const PART_LABELS: Record<PartType, string> = {
   cone: 'Cone',
   wedge: 'Wedge',
   torus: 'Ring',
+  dome: 'Dome',
+  capsule: 'Capsule',
+  pyramid: 'Pyramid',
+  tube: 'Tube',
+  prism: 'Hex prism',
+  frustum: 'Tapered cylinder',
 }
 
 export function newPart(type: PartType, color = '#9aa7b8'): Part {
