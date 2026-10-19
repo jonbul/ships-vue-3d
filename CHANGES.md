@@ -1,5 +1,11 @@
 CHANGES
 =======
+Version 0.3.1 - 2026-10-19
+------------------
+Space dust now surrounds the ship wherever it flies. Before, the dust stayed
+in a small cloud at the centre of the world, so away from the centre there
+was nothing passing by to show how fast the ship was moving.
+
 Version 0.3.0 - 2026-10-18
 ------------------
 Six new shapes in the ship designer, for more detailed ships.
