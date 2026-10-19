@@ -10,6 +10,12 @@ Textures for ship parts in the designer.
   (the first one) is the old untextured look, and ships saved before keep it.
 - The texture is tinted by the part's color, so color works as before.
 - A new part gets the last texture picked, like it gets the last color.
+- Or an image from the web: paste an https link to an image in "Image link"
+  and it is tiled over the part like the built-in textures (pick white to
+  show the image's own colors). The site hosting it has to allow other sites
+  to use its images (CORS); if it doesn't, or the link breaks, the part
+  shows plain, and the editor says the image couldn't be loaded. Every
+  player's browser loads the image from that site in game.
 - Textures are projected along each face, so they keep the same size on
   every shape however much a part is stretched, and show in thumbnails and
   in game too. They are drawn in the browser, so nothing extra is

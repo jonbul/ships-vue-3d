@@ -25,6 +25,12 @@ describe('validateProject', () => {
     expect(validateProject(project())).toEqual([])
   })
 
+  it('accepts an https image link', () => {
+    const p = project()
+    p.layers[0]!.parts[0]!.textureUrl = 'https://i.imgur.com/abc123.png?size=2'
+    expect(validateProject(p)).toEqual([])
+  })
+
   it.each(PART_TEXTURES)('accepts the %s texture', (texture) => {
     const p = project()
     p.layers[0]!.parts[0]!.texture = texture
@@ -38,6 +44,23 @@ describe('validateProject', () => {
     ['zero scale', (p: Project) => (p.layers[0]!.parts[0]!.scale[1] = 0)],
     ['no layers', (p: Project) => (p.layers = [])],
     ['unknown texture', (p: Project) => (p.layers[0]!.parts[0]!.texture = 'marble' as PartTexture)],
+    ['http image link', (p: Project) => (p.layers[0]!.parts[0]!.textureUrl = 'http://a.com/a.png')],
+    [
+      'spaced image link',
+      (p: Project) => (p.layers[0]!.parts[0]!.textureUrl = 'https://a.com/a b'),
+    ],
+    [
+      'long image link',
+      (p: Project) =>
+        (p.layers[0]!.parts[0]!.textureUrl = `https://a.com/${'a'.repeat(LIMITS.textureUrl)}`),
+    ],
+    [
+      'texture and image link',
+      (p: Project) => {
+        p.layers[0]!.parts[0]!.texture = 'panels'
+        p.layers[0]!.parts[0]!.textureUrl = 'https://a.com/a.png'
+      },
+    ],
   ])('rejects %s', (_, mutate) => {
     const p = project()
     mutate(p)

@@ -54,6 +54,12 @@ describe('partMaterial', () => {
     expect(partMaterial('#112233', 'panels')).toBe(partMaterial('#112233', 'panels'))
   })
 
+  it('draws an image link plain where it cannot be loaded', () => {
+    expect(partMaterial('#445566', undefined, 'https://example.com/a.png')).toBe(
+      partMaterial('#445566'),
+    )
+  })
+
   it('draws an unknown texture plain', () => {
     expect(partMaterial('#445566', 'marble' as PartTexture)).toBe(partMaterial('#445566'))
   })

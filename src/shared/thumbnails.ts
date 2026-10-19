@@ -10,6 +10,7 @@ import {
 } from 'three'
 
 import { buildShip } from './shipMesh'
+import { urlTexturesVersion } from './textures'
 import type { Layer } from './shipModel'
 
 // Every thumbnail on every page is drawn by this one offscreen renderer and
@@ -38,7 +39,10 @@ function setup(): WebGLRenderer {
 
 /** A PNG data URL of the ship seen from the front-right, above. */
 export function shipThumbnail(layers: Layer[]): string {
-  const key = JSON.stringify(layers)
+  const json = JSON.stringify(layers)
+  // Image textures load in the background: a thumbnail drawn before they
+  // arrived is redrawn once they have (ShipThumbnail asks again).
+  const key = json.includes('"textureUrl"') ? `${urlTexturesVersion()} ${json}` : json
   const cached = cache.get(key)
   if (cached) return cached
 

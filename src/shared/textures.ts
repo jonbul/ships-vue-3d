@@ -1,4 +1,4 @@
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
+import { CanvasTexture, ImageLoader, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 
 import type { PartTexture } from './shipModel'
 
@@ -25,6 +25,88 @@ export function partTexture(name: PartTexture): Texture | null {
 export function textureSwatch(name: PartTexture): string {
   const image = partTexture(name)?.image as HTMLCanvasElement | undefined
   return image ? image.toDataURL() : ''
+}
+
+// --- Image textures from a URL ---------------------------------------------
+//
+// Loaded in the background: the texture starts out white (the part shows its
+// plain color) and gets the image once it arrives. If the image can't be
+// loaded - a dead link, or a host that doesn't allow other sites to use its
+// images (CORS) - it stays white. Like the built-in ones they are shared per
+// URL and never disposed.
+
+export type UrlTextureState = 'loading' | 'loaded' | 'failed'
+
+const urlTextures = new Map<string, { texture: Texture | null; state: UrlTextureState }>()
+const listeners = new Set<() => void>()
+let urlVersion = 0
+
+/** The texture for an image URL, or null where there is no canvas (tests). */
+export function urlTexture(url: string): Texture | null {
+  let entry = urlTextures.get(url)
+  if (!entry) {
+    entry = { texture: null, state: 'loading' }
+    urlTextures.set(url, entry)
+    if (typeof document === 'undefined') {
+      entry.state = 'failed'
+      return null
+    }
+    const white = document.createElement('canvas')
+    white.width = white.height = 1
+    const ctx = white.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, 1, 1)
+    }
+    // Typed as a plain Texture: its image is swapped for an <img> on load.
+    const texture: Texture = new CanvasTexture(white)
+    texture.wrapS = texture.wrapT = RepeatWrapping
+    texture.colorSpace = SRGBColorSpace
+    texture.anisotropy = 4
+    entry.texture = texture
+    const settled = entry
+    const loader = new ImageLoader()
+    // Without CORS the image would taint WebGL and can't be used at all.
+    loader.setCrossOrigin('anonymous')
+    loader.load(
+      url,
+      (image) => {
+        texture.image = image
+        // The GPU copy was allocated at the placeholder's 1x1 size: drop it
+        // so the next render uploads the image at its own size.
+        texture.dispose()
+        texture.needsUpdate = true
+        settled.state = 'loaded'
+        notify()
+      },
+      undefined,
+      () => {
+        settled.state = 'failed'
+        notify()
+      },
+    )
+  }
+  return entry.texture
+}
+
+export function urlTextureState(url: string): UrlTextureState {
+  return urlTextures.get(url)?.state ?? 'loading'
+}
+
+/** Goes up every time an image texture finishes loading or fails. */
+export function urlTexturesVersion(): number {
+  return urlVersion
+}
+
+/** Calls listener whenever an image texture finishes loading or fails. */
+export function onUrlTextureLoaded(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function notify(): void {
+  urlVersion++
+  for (const listener of listeners) listener()
 }
 
 function createTexture(name: PartTexture): Texture | null {

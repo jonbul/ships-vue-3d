@@ -21,7 +21,7 @@ import {
   type PartTexture,
   type PartType,
 } from './shipModel'
-import { partTexture } from './textures'
+import { partTexture, urlTexture } from './textures'
 
 // Geometries and materials are shared by every ship on every screen and never
 // disposed: there is one geometry per part type and one material per color
@@ -140,10 +140,18 @@ export function partGeometry(type: PartType): BufferGeometry {
   return geometry
 }
 
-export function partMaterial(color: string, texture?: PartTexture): MeshStandardMaterial {
+export function partMaterial(
+  color: string,
+  texture?: PartTexture,
+  textureUrl?: string,
+): MeshStandardMaterial {
   // An unknown texture (from a newer client, say) draws the part plain.
-  const map = texture && PART_TEXTURES.includes(texture) ? partTexture(texture) : null
-  const key = map ? `${color} ${texture}` : color
+  const map = textureUrl
+    ? urlTexture(textureUrl)
+    : texture && PART_TEXTURES.includes(texture)
+      ? partTexture(texture)
+      : null
+  const key = !map ? color : textureUrl ? `${color} url ${textureUrl}` : `${color} ${texture}`
   let material = materials.get(key)
   if (!material) {
     material = new MeshStandardMaterial({
@@ -197,7 +205,10 @@ function projectTexture(material: MeshStandardMaterial): void {
 
 /** A mesh for one part, or for its mirror image. */
 export function createPartMesh(part: Part, mirrored = false): Mesh {
-  const mesh = new Mesh(partGeometry(part.type), partMaterial(part.color, part.texture))
+  const mesh = new Mesh(
+    partGeometry(part.type),
+    partMaterial(part.color, part.texture, part.textureUrl),
+  )
   applyPartTransform(mesh, part, mirrored)
   return mesh
 }

@@ -14,6 +14,7 @@ import {
   TEXTURE_LABELS,
   boundingRadius,
   cloneLayers,
+  isValidTextureUrl,
   clonePart,
   countParts,
   newLayer,
@@ -26,7 +27,7 @@ import {
   type PartType,
   type Project,
 } from '@/shared/shipModel'
-import { textureSwatch } from '@/shared/textures'
+import { onUrlTextureLoaded, textureSwatch, urlTextureState } from '@/shared/textures'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +42,7 @@ const mode = ref<GizmoMode>('translate')
 const snap = ref(true)
 const currentColor = ref('#9aa7b8')
 const currentTexture = ref<PartTexture | undefined>()
+const currentTextureUrl = ref<string | undefined>()
 const loading = ref(true)
 const saving = ref(false)
 
@@ -79,6 +81,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  stopUrlTextureListener()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('beforeunload', onBeforeUnload)
   editor?.destroy()
@@ -178,6 +181,7 @@ function addPart(type: PartType) {
   layer.visible = true
   const part = newPart(type, currentColor.value)
   if (currentTexture.value) part.texture = currentTexture.value
+  if (currentTextureUrl.value) part.textureUrl = currentTextureUrl.value
   layer.parts.push(part)
   refresh()
   selectPart({ layer: activeLayer.value, part: layer.parts.length - 1 })
@@ -262,13 +266,49 @@ function setColor(color: string) {
 function setTexture(texture: PartTexture | undefined) {
   const part = selectedPart.value
   currentTexture.value = texture
+  currentTextureUrl.value = undefined
   if (!part) return
   // Deleted rather than set to undefined, so the saved part has no key.
   if (texture) part.texture = texture
   else delete part.texture
+  delete part.textureUrl
   refresh()
   commit()
 }
+
+/** An image link as the texture; empty makes the part plain. */
+function setTextureUrl(event: Event) {
+  const input = event.target as HTMLInputElement
+  const part = selectedPart.value
+  const url = input.value.trim()
+  if (!part) return
+  if (url && !isValidTextureUrl(url)) {
+    showAlert(
+      'error',
+      `Image links must start with https:// and be at most ${LIMITS.textureUrl} characters.`,
+    )
+    input.value = part.textureUrl ?? ''
+    return
+  }
+  currentTexture.value = undefined
+  currentTextureUrl.value = url || undefined
+  delete part.texture
+  if (url) part.textureUrl = url
+  else delete part.textureUrl
+  refresh()
+  commit()
+}
+
+// Bumped when an image texture loads or fails, so its status below updates.
+const urlTexturesSettled = ref(0)
+const stopUrlTextureListener = onUrlTextureLoaded(() => urlTexturesSettled.value++)
+const selectedUrlState = computed(() => {
+  const url = selectedPart.value?.textureUrl
+  return url && urlTexturesSettled.value >= 0 ? urlTextureState(url) : null
+})
+
+/** A CSS url() for an image link, quoted so any character in it is safe. */
+const cssUrl = (url: string) => `url(${JSON.stringify(url)})`
 
 // Drawn once, the first time the editor opens.
 const textureSwatches = computed(() =>
@@ -518,7 +558,11 @@ function onKeyDown(event: KeyboardEvent) {
               class="swatch"
               :style="{
                 backgroundColor: part.color,
-                backgroundImage: part.texture ? `url(${textureSwatches[part.texture]})` : 'none',
+                backgroundImage: part.textureUrl
+                  ? cssUrl(part.textureUrl)
+                  : part.texture
+                    ? `url(${textureSwatches[part.texture]})`
+                    : 'none',
               }"
             />
             {{ PART_LABELS[part.type] }} {{ i + 1 }}
@@ -601,7 +645,7 @@ function onKeyDown(event: KeyboardEvent) {
           <button
             type="button"
             class="texture-button"
-            :class="{ active: !selectedPart.texture }"
+            :class="{ active: !selectedPart.texture && !selectedPart.textureUrl }"
             :style="{ backgroundColor: selectedPart.color }"
             title="Plain"
             aria-label="Plain"
@@ -622,6 +666,24 @@ function onKeyDown(event: KeyboardEvent) {
             @click="setTexture(texture)"
           />
         </div>
+        <label class="row">
+          Image link
+          <input
+            type="url"
+            class="texture-url"
+            placeholder="https://…"
+            :maxlength="LIMITS.textureUrl"
+            :value="selectedPart.textureUrl ?? ''"
+            @change="setTextureUrl"
+          />
+        </label>
+        <p v-if="selectedUrlState === 'failed'" class="muted hint">
+          The image couldn't be loaded. The site may not allow other sites to use its images; the
+          part shows as plain.
+        </p>
+        <p v-else-if="selectedPart.textureUrl" class="muted hint">
+          The image is tiled and tinted by the color: pick white to show its own colors.
+        </p>
 
         <label class="row check">
           <input
@@ -852,6 +914,14 @@ button.icon {
   padding: 0;
   border-radius: 4px;
   border: 2px solid var(--border);
+}
+.texture-url {
+  flex: 1;
+  min-width: 0;
+}
+.hint {
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
 }
 .texture-button.active {
   border-color: var(--accent);

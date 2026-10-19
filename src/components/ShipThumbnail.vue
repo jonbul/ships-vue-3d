@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 import type { Layer } from '@/shared/shipModel'
+import { onUrlTextureLoaded } from '@/shared/textures'
 import { shipThumbnail } from '@/shared/thumbnails'
 
 const props = defineProps<{ layers: Layer[]; alt: string }>()
 
-const src = computed(() => shipThumbnail(props.layers))
+// Bumped when an image texture arrives, so the thumbnail is drawn again with it.
+const texturesLoaded = ref(0)
+onBeforeUnmount(onUrlTextureLoaded(() => texturesLoaded.value++))
+
+const src = computed(() => (texturesLoaded.value >= 0 ? shipThumbnail(props.layers) : ''))
 </script>
 
 <template>
