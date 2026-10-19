@@ -3,11 +3,13 @@ import { Euler, Matrix4, Vector3 } from 'three'
 
 import {
   LIMITS,
+  PART_TEXTURES,
   boundingRadius,
   mirroredTransform,
   newPart,
   newProject,
   validateProject,
+  type PartTexture,
   type Project,
 } from './shipModel'
 
@@ -23,12 +25,42 @@ describe('validateProject', () => {
     expect(validateProject(project())).toEqual([])
   })
 
+  it('accepts an https image link', () => {
+    const p = project()
+    p.layers[0]!.parts[0]!.textureUrl = 'https://i.imgur.com/abc123.png?size=2'
+    expect(validateProject(p)).toEqual([])
+  })
+
+  it.each(PART_TEXTURES)('accepts the %s texture', (texture) => {
+    const p = project()
+    p.layers[0]!.parts[0]!.texture = texture
+    expect(validateProject(p)).toEqual([])
+  })
+
   it.each([
     ['no name', (p: Project) => (p.name = '  ')],
     ['bad color', (p: Project) => (p.layers[0]!.parts[0]!.color = 'red')],
     ['far position', (p: Project) => (p.layers[0]!.parts[0]!.position[0] = LIMITS.coordinate + 1)],
     ['zero scale', (p: Project) => (p.layers[0]!.parts[0]!.scale[1] = 0)],
     ['no layers', (p: Project) => (p.layers = [])],
+    ['unknown texture', (p: Project) => (p.layers[0]!.parts[0]!.texture = 'marble' as PartTexture)],
+    ['http image link', (p: Project) => (p.layers[0]!.parts[0]!.textureUrl = 'http://a.com/a.png')],
+    [
+      'spaced image link',
+      (p: Project) => (p.layers[0]!.parts[0]!.textureUrl = 'https://a.com/a b'),
+    ],
+    [
+      'long image link',
+      (p: Project) =>
+        (p.layers[0]!.parts[0]!.textureUrl = `https://a.com/${'a'.repeat(LIMITS.textureUrl)}`),
+    ],
+    [
+      'texture and image link',
+      (p: Project) => {
+        p.layers[0]!.parts[0]!.texture = 'panels'
+        p.layers[0]!.parts[0]!.textureUrl = 'https://a.com/a.png'
+      },
+    ],
   ])('rejects %s', (_, mutate) => {
     const p = project()
     mutate(p)

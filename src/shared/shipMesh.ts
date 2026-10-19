@@ -13,11 +13,19 @@ import {
   Vector2,
 } from 'three'
 
-import { mirroredTransform, type Layer, type Part, type PartType } from './shipModel'
+import {
+  PART_TEXTURES,
+  mirroredTransform,
+  type Layer,
+  type Part,
+  type PartTexture,
+  type PartType,
+} from './shipModel'
+import { partTexture, urlTexture } from './textures'
 
 // Geometries and materials are shared by every ship on every screen and never
-// disposed: there is one geometry per part type and one material per color,
-// so the set stays small, and sharing them is what lets a game with many
+// disposed: there is one geometry per part type and one material per color
+// and texture, so the set stays small, and sharing them is what lets a game with many
 // ships stay cheap enough for a phone. Never call .dispose() on them.
 const geometries = new Map<PartType, BufferGeometry>()
 const materials = new Map<string, MeshStandardMaterial>()
@@ -132,23 +140,75 @@ export function partGeometry(type: PartType): BufferGeometry {
   return geometry
 }
 
-export function partMaterial(color: string): MeshStandardMaterial {
-  let material = materials.get(color)
+export function partMaterial(
+  color: string,
+  texture?: PartTexture,
+  textureUrl?: string,
+): MeshStandardMaterial {
+  // An unknown texture (from a newer client, say) draws the part plain.
+  const map = textureUrl
+    ? urlTexture(textureUrl)
+    : texture && PART_TEXTURES.includes(texture)
+      ? partTexture(texture)
+      : null
+  const key = !map ? color : textureUrl ? `${color} url ${textureUrl}` : `${color} ${texture}`
+  let material = materials.get(key)
   if (!material) {
     material = new MeshStandardMaterial({
       color,
+      map,
       roughness: 0.55,
       metalness: 0.25,
       flatShading: true,
     })
-    materials.set(color, material)
+    if (map) projectTexture(material)
+    materials.set(key, material)
   }
   return material
 }
 
+/** Texture tiles per unit of length, before the ship is scaled in game. */
+const TEXTURE_DENSITY = 0.5
+
+/**
+ * Makes a textured material project its texture onto each face along the
+ * face's main axis (triplanar mapping, in the part's own scaled space)
+ * instead of using the geometry's UVs. The texture then keeps the same size
+ * on every part however it is stretched (a long hull isn't smeared into
+ * streaks), and every shape gets it, including the hand-built wedge, which
+ * has no UVs.
+ */
+function projectTexture(material: MeshStandardMaterial): void {
+  material.customProgramCacheKey = () => 'ship-triplanar'
+  material.onBeforeCompile = (shader) => {
+    const varyings = 'varying vec3 vTriPosition;\nvarying vec3 vTriNormal;\n'
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${varyings}`)
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        vec3 partScale = vec3(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz), length(modelMatrix[2].xyz));
+        vTriPosition = position * partScale;
+        vTriNormal = normal / partScale;`,
+      )
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${varyings}`)
+      .replace(
+        '#include <map_fragment>',
+        `vec3 triAxis = abs(vTriNormal);
+        vec2 triUv = triAxis.x >= triAxis.y && triAxis.x >= triAxis.z ? vTriPosition.zy
+          : triAxis.y >= triAxis.z ? vTriPosition.xz : vTriPosition.xy;
+        diffuseColor *= texture2D(map, triUv * ${TEXTURE_DENSITY.toFixed(3)});`,
+      )
+  }
+}
+
 /** A mesh for one part, or for its mirror image. */
 export function createPartMesh(part: Part, mirrored = false): Mesh {
-  const mesh = new Mesh(partGeometry(part.type), partMaterial(part.color))
+  const mesh = new Mesh(
+    partGeometry(part.type),
+    partMaterial(part.color, part.texture, part.textureUrl),
+  )
   applyPartTransform(mesh, part, mirrored)
   return mesh
 }

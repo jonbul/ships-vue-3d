@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Vector3, type BufferGeometry } from 'three'
 
-import { partGeometry } from './shipMesh'
-import { PART_TYPES } from './shipModel'
+import { partGeometry, partMaterial } from './shipMesh'
+import { PART_TYPES, type PartTexture } from './shipModel'
 
 function triangles(geometry: BufferGeometry): Vector3[][] {
   const position = geometry.getAttribute('position')
@@ -45,5 +45,22 @@ describe('partGeometry', () => {
       const reflected = new Vector3(-point.x, point.y, point.z)
       expect(points.some((p) => p.distanceTo(reflected) < 1e-4)).toBe(true)
     }
+  })
+})
+
+describe('partMaterial', () => {
+  it('shares one material per color and texture', () => {
+    expect(partMaterial('#112233')).toBe(partMaterial('#112233'))
+    expect(partMaterial('#112233', 'panels')).toBe(partMaterial('#112233', 'panels'))
+  })
+
+  it('draws an image link plain where it cannot be loaded', () => {
+    expect(partMaterial('#445566', undefined, 'https://example.com/a.png')).toBe(
+      partMaterial('#445566'),
+    )
+  })
+
+  it('draws an unknown texture plain', () => {
+    expect(partMaterial('#445566', 'marble' as PartTexture)).toBe(partMaterial('#445566'))
   })
 })
