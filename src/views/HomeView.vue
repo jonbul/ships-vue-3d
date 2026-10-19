@@ -1,44 +1,40 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
 import { session } from '@/session'
 </script>
 
 <template>
   <div class="page home">
     <h1>Ships <span>3D</span></h1>
-    <p class="lead">
-      Design your own spaceship from 3D parts, then fly it against other players in open space.
-    </p>
+    <p class="lead">{{ t.home.lead }}</p>
     <div class="actions">
-      <RouterLink class="button primary" to="/game">Play</RouterLink>
-      <RouterLink v-if="session.user" class="button" to="/projects">My ships</RouterLink>
-      <RouterLink v-else class="button" to="/register">Create an account</RouterLink>
+      <RouterLink class="button primary" to="/game">{{ t.home.play }}</RouterLink>
+      <RouterLink v-if="session.user" class="button" to="/projects">{{
+        t.home.myShips
+      }}</RouterLink>
+      <RouterLink v-else class="button" to="/register">{{ t.home.createAccount }}</RouterLink>
     </div>
-    <p v-if="!session.user && session.loaded" class="hint">
-      Guests can play with the built-in ships. Log in to design and fly your own.
-    </p>
+    <p v-if="!session.user && session.loaded" class="hint">{{ t.home.guestHint }}</p>
 
     <section class="controls">
-      <h2>Controls</h2>
+      <h2>{{ t.home.controls }}</h2>
       <dl>
-        <dt>Mouse</dt>
-        <dd>Click the game to capture the mouse, then move it to steer. Left button fires.</dd>
+        <dt>{{ t.home.mouse }}</dt>
+        <dd>{{ t.home.mouseText }}</dd>
         <dt>↑ ↓ ← →</dt>
-        <dd>Pitch and turn</dd>
+        <dd>{{ t.home.pitchTurn }}</dd>
         <dt>A / D</dt>
-        <dd>Roll</dd>
+        <dd>{{ t.home.roll }}</dd>
         <dt>W / S</dt>
-        <dd>Throttle up / down</dd>
-        <dt>Space</dt>
-        <dd>Fire</dd>
+        <dd>{{ t.home.throttle }}</dd>
+        <dt>{{ t.home.space }}</dt>
+        <dd>{{ t.home.fire }}</dd>
         <dt>Tab</dt>
-        <dd>Scoreboard</dd>
+        <dd>{{ t.home.scoreboard }}</dd>
         <dt>+ / -</dt>
-        <dd>Radar range (or click the radar's caption)</dd>
-        <dt>Phone</dt>
-        <dd>
-          Throttle slider on the left, fire and roll on the right; steer with the on-screen stick or
-          by tilting the phone (switch any time)
-        </dd>
+        <dd>{{ t.home.radarRange }}</dd>
+        <dt>{{ t.home.phone }}</dt>
+        <dd>{{ t.home.phoneText }}</dd>
       </dl>
     </section>
   </div>

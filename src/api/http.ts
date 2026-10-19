@@ -1,3 +1,5 @@
+import { locale, t } from '@/i18n'
+
 // ships-go-3d runs on the same host as this page (so it also works when the
 // site is opened from another device on the LAN), on port VITE_API_PORT
 // (default 3000, the same as the 2D backend). VITE_API_URL overrides both.
@@ -20,7 +22,7 @@ export class ApiError extends Error {
     readonly messages: string[],
     readonly help?: HelpLink,
   ) {
-    super(messages.join(' ') || `Request failed (${status})`)
+    super(messages.join(' ') || t.value.http.requestFailed(status))
   }
 }
 
@@ -32,16 +34,10 @@ export class ApiError extends Error {
  * fail silently, so the way out is to open the API once and accept it there.
  */
 function unreachable(): ApiError {
-  return new ApiError(
-    0,
-    [
-      `Could not reach the server at ${API_URL}.`,
-      'If it is running, your browser may not trust its certificate for this address ' +
-        '(for example when the site is opened by IP address). Open the link below, accept ' +
-        'the certificate, then reload this page - or open the site by its domain name.',
-    ],
-    { href: `${API_URL}/status`, text: `Open ${API_URL}/status` },
-  )
+  return new ApiError(0, [t.value.http.unreachable(API_URL), t.value.http.certificate], {
+    href: `${API_URL}/status`,
+    text: t.value.http.open(`${API_URL}/status`),
+  })
 }
 
 export async function request<T>(
@@ -53,7 +49,11 @@ export async function request<T>(
     response = await fetch(API_URL + path, {
       method: options.method ?? 'GET',
       credentials: 'include',
-      headers: options.body === undefined ? {} : { 'Content-Type': 'application/json' },
+      // The server answers errors in this language.
+      headers: {
+        'Accept-Language': locale.value,
+        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
   } catch {
@@ -70,7 +70,7 @@ export async function request<T>(
     const errors = (data as { errors?: unknown } | null)?.errors
     throw new ApiError(
       response.status,
-      Array.isArray(errors) ? errors.map(String) : [`Request failed (${response.status})`],
+      Array.isArray(errors) ? errors.map(String) : [t.value.http.requestFailed(response.status)],
     )
   }
   return data as T

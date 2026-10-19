@@ -9,6 +9,7 @@ import {
   WebGLRenderer,
 } from 'three'
 
+import { t } from '@/i18n'
 import { buildShip } from '@/shared/shipMesh'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
@@ -144,9 +145,7 @@ export class Game {
       // tablets with one. The mouse is left out: taps arrive as emulated
       // mouse events too.
       this.root.classList.add('touch-layout')
-      this.hud.setHint(
-        'Left: throttle · stick or tilt to steer · ⟲ ⟳ roll · FIRE · tap the radar to change its range',
-      )
+      this.hud.setHint(t.value.game.touchHint)
       this.input = new CombinedInput([
         new KeyboardMouseInput(this.renderer.domElement, false),
         new TouchInput(this.root, {
@@ -171,10 +170,7 @@ export class Game {
       onMessage: (message) => this.handle(message),
       // Closed before the welcome: it never connected, which is usually the
       // server being down or its certificate not trusted for this address.
-      onClose: () =>
-        this.end(
-          this.settings ? 'Disconnected from the server.' : 'Could not connect to the game server.',
-        ),
+      onClose: () => this.end(this.settings ? t.value.game.disconnected : t.value.game.cantConnect),
     })
 
     this.lastFrameTime = performance.now()
@@ -209,11 +205,11 @@ export class Game {
         return this.onWelcome(message.id, message.settings, message.players)
       case 'playerJoined':
         this.addRemote(message.player)
-        this.hud.message(`${message.player.name} joined`)
+        this.hud.message(t.value.game.joined(message.player.name))
         return
       case 'playerLeft': {
         const remote = this.remotes.get(message.id)
-        if (remote) this.hud.message(`${remote.info.name} left`)
+        if (remote) this.hud.message(t.value.game.left(remote.info.name))
         return this.removeRemote(message.id)
       }
       case 'snapshot':
@@ -302,7 +298,9 @@ export class Game {
       this.effects.explosion(victim.group.position, this.settings.shipRadius * 3)
     }
     this.hud.message(
-      killer ? `${killer.info.name} ✹ ${victim.info.name}` : `${victim.info.name} was destroyed`,
+      killer
+        ? `${killer.info.name} ✹ ${victim.info.name}`
+        : t.value.game.wasDestroyed(victim.info.name),
     )
     if (victim === this.me) {
       this.alive = false

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { changePassword } from '@/api/auth'
 import { showAlert, showError } from '@/alerts'
+import { t } from '@/i18n'
 import { session } from '@/session'
 
 const currentPassword = ref('')
@@ -12,13 +13,13 @@ const busy = ref(false)
 
 async function submit() {
   if (newPassword.value !== repeatPassword.value) {
-    showAlert('error', "The new passwords don't match.")
+    showAlert('error', t.value.profile.mismatch)
     return
   }
   busy.value = true
   try {
     await changePassword(currentPassword.value, newPassword.value)
-    showAlert('success', 'Password changed. Your other devices have been logged out.')
+    showAlert('success', t.value.profile.changed)
     currentPassword.value = newPassword.value = repeatPassword.value = ''
   } catch (error) {
     showError(error)
@@ -33,14 +34,14 @@ async function submit() {
     <h1>{{ session.user.username }}</h1>
     <p class="muted">{{ session.user.email }}</p>
 
-    <h2>Change password</h2>
+    <h2>{{ t.profile.changePassword }}</h2>
     <form class="form" @submit.prevent="submit">
       <label>
-        Current password
+        {{ t.profile.currentPassword }}
         <input v-model="currentPassword" type="password" autocomplete="current-password" required />
       </label>
       <label>
-        New password
+        {{ t.profile.newPassword }}
         <input
           v-model="newPassword"
           type="password"
@@ -50,7 +51,7 @@ async function submit() {
         />
       </label>
       <label>
-        Repeat new password
+        {{ t.profile.repeatNewPassword }}
         <input
           v-model="repeatPassword"
           type="password"
@@ -59,7 +60,7 @@ async function submit() {
           minlength="8"
         />
       </label>
-      <button class="primary" type="submit" :disabled="busy">Change password</button>
+      <button class="primary" type="submit" :disabled="busy">{{ t.profile.submit }}</button>
     </form>
   </div>
 </template>

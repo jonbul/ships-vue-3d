@@ -5,6 +5,8 @@
 // centred on its position, then scaled, rotated (XYZ Euler, radians) and
 // placed. Ships face +Z (their nose) with +Y up.
 
+import { t } from '@/i18n'
+
 export const PART_TYPES = [
   'box',
   'sphere',
@@ -58,21 +60,6 @@ export const LIMITS = {
   maxScale: 50,
 } as const
 
-export const PART_LABELS: Record<PartType, string> = {
-  box: 'Box',
-  sphere: 'Sphere',
-  cylinder: 'Cylinder',
-  cone: 'Cone',
-  wedge: 'Wedge',
-  torus: 'Ring',
-  dome: 'Dome',
-  capsule: 'Capsule',
-  pyramid: 'Pyramid',
-  tube: 'Tube',
-  prism: 'Hex prism',
-  frustum: 'Tapered cylinder',
-}
-
 export function newPart(type: PartType, color = '#9aa7b8'): Part {
   return {
     type,
@@ -89,7 +76,7 @@ export function newLayer(name: string): Layer {
 }
 
 export function newProject(): Project {
-  return { name: '', layers: [newLayer('Hull')] }
+  return { name: '', layers: [newLayer(t.value.editor.hull)] }
 }
 
 export function clonePart(part: Part): Part {
@@ -113,27 +100,22 @@ const COLOR = /^#[0-9a-fA-F]{6}$/
 
 /** Problems the server would reject the project for; empty when valid. */
 export function validateProject(project: Project): string[] {
+  const text = t.value.ship
   const problems: string[] = []
   const name = project.name.trim()
-  if (!name) problems.push('The ship needs a name.')
-  if ([...name].length > LIMITS.projectName) {
-    problems.push(`The name can't be longer than ${LIMITS.projectName} characters.`)
-  }
-  if (project.layers.length === 0) problems.push('The ship needs at least one layer.')
-  if (project.layers.length > LIMITS.layers) {
-    problems.push(`A ship can't have more than ${LIMITS.layers} layers.`)
-  }
-  if (countParts(project.layers) > LIMITS.parts) {
-    problems.push(`A ship can't have more than ${LIMITS.parts} parts.`)
-  }
+  if (!name) problems.push(text.needsName)
+  if ([...name].length > LIMITS.projectName) problems.push(text.nameTooLong(LIMITS.projectName))
+  if (project.layers.length === 0) problems.push(text.needsLayer)
+  if (project.layers.length > LIMITS.layers) problems.push(text.tooManyLayers(LIMITS.layers))
+  if (countParts(project.layers) > LIMITS.parts) problems.push(text.tooManyParts(LIMITS.parts))
   for (const layer of project.layers) {
     if ([...layer.name.trim()].length > LIMITS.layerName) {
-      problems.push(`Layer names can't be longer than ${LIMITS.layerName} characters.`)
+      problems.push(text.layerNameTooLong(LIMITS.layerName))
     }
     for (const part of layer.parts) {
       const problem = partProblem(part)
       if (problem) {
-        problems.push(`Layer "${layer.name}": ${problem}`)
+        problems.push(text.layerProblem(layer.name, problem))
         break
       }
     }
@@ -142,17 +124,18 @@ export function validateProject(project: Project): string[] {
 }
 
 function partProblem(part: Part): string | null {
-  if (!PART_TYPES.includes(part.type)) return `unknown part type "${part.type}".`
-  if (!COLOR.test(part.color)) return `invalid color "${part.color}".`
+  const text = t.value.ship
+  if (!PART_TYPES.includes(part.type)) return text.unknownType(part.type)
+  if (!COLOR.test(part.color)) return text.invalidColor(part.color)
   for (let axis = 0; axis < 3; axis++) {
     const position = part.position[axis]!
     const scale = part.scale[axis]!
     if (!Number.isFinite(position) || Math.abs(position) > LIMITS.coordinate) {
-      return `positions must be between -${LIMITS.coordinate} and ${LIMITS.coordinate}.`
+      return text.positionRange(LIMITS.coordinate)
     }
-    if (!Number.isFinite(part.rotation[axis]!)) return 'invalid rotation.'
+    if (!Number.isFinite(part.rotation[axis]!)) return text.invalidRotation
     if (!Number.isFinite(scale) || scale < LIMITS.minScale || scale > LIMITS.maxScale) {
-      return `sizes must be between ${LIMITS.minScale} and ${LIMITS.maxScale}.`
+      return text.sizeRange(LIMITS.minScale, LIMITS.maxScale)
     }
   }
   return null

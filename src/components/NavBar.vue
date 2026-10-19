@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import { logout } from '@/api/auth'
 import { showError } from '@/alerts'
+import { LOCALES, locale, setLocale, t, type Locale } from '@/i18n'
 import { session, setUser } from '@/session'
 
 const router = useRouter()
@@ -28,23 +29,34 @@ async function onLogout() {
       class="menu-toggle"
       type="button"
       :aria-expanded="menuOpen"
-      aria-label="Toggle navigation"
+      :aria-label="t.nav.toggle"
       @click="menuOpen = !menuOpen"
     >
       &#9776;
     </button>
     <div class="links" :class="{ open: menuOpen }" @click="menuOpen = false">
-      <RouterLink to="/game">Play</RouterLink>
-      <RouterLink v-if="session.user" to="/projects">My ships</RouterLink>
+      <RouterLink to="/game">{{ t.nav.play }}</RouterLink>
+      <RouterLink v-if="session.user" to="/projects">{{ t.nav.myShips }}</RouterLink>
       <span class="spacer" />
       <template v-if="session.user">
         <RouterLink to="/profile">👤 {{ session.user.username }}</RouterLink>
-        <a href="#" @click.prevent="onLogout">Logout</a>
+        <a href="#" @click.prevent="onLogout">{{ t.nav.logout }}</a>
       </template>
       <template v-else-if="session.loaded">
-        <RouterLink to="/login">Login</RouterLink>
-        <RouterLink to="/register">Register</RouterLink>
+        <RouterLink to="/login">{{ t.nav.login }}</RouterLink>
+        <RouterLink to="/register">{{ t.nav.register }}</RouterLink>
       </template>
+      <!-- Not a link: picking a language shouldn't close the menu. -->
+      <select
+        class="language"
+        :value="locale"
+        :aria-label="t.common.language"
+        :title="t.common.language"
+        @click.stop
+        @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"
+      >
+        <option v-for="(name, code) in LOCALES" :key="code" :value="code">{{ name }}</option>
+      </select>
     </div>
   </nav>
 </template>
@@ -84,6 +96,10 @@ async function onLogout() {
 }
 .spacer {
   flex: 1;
+}
+.language {
+  width: auto;
+  padding: 0.2rem 0.4rem;
 }
 .menu-toggle {
   display: none;

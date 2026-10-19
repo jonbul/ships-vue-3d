@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 
 import { ApiError, type HelpLink } from './api/http'
+import { t } from './i18n'
 
 export type AlertKind = 'success' | 'error' | 'info'
 
@@ -32,7 +33,7 @@ export function dismissAlert(id: number): void {
 }
 
 /** Shows whatever went wrong, with the server's own messages when it sent any. */
-export function showError(error: unknown, fallback = 'Something went wrong.'): void {
+export function showError(error: unknown, fallback = t.value.common.somethingWrong): void {
   if (error instanceof ApiError)
     pushAlert({ kind: 'error', messages: error.messages, help: error.help })
   else showAlert('error', fallback)

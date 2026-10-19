@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 import { clamp } from './flight'
 import type { InputSource, InputState } from './input'
 import { TiltSensor, requestTiltPermission, tiltToAxis } from './tilt'
@@ -65,6 +67,7 @@ export class TouchInput implements InputSource {
     container: HTMLElement,
     private readonly options: TouchInputOptions,
   ) {
+    const text = t.value.game
     this.root = el('div', 'touch-controls', container)
 
     // Utility buttons, under the life bar.
@@ -76,7 +79,7 @@ export class TouchInput implements InputSource {
       () => void this.setMode(this.mode === 'stick' ? 'tilt' : 'stick'),
     )
     this.recenterButton = el('button', 'touch-tool', tools)
-    this.recenterButton.textContent = '⊕ Recenter'
+    this.recenterButton.textContent = text.recenter
     this.on(this.recenterButton, 'click', () => this.sensor.recenter())
     const scores = el('button', 'touch-tool', tools)
     scores.textContent = '🏆'
@@ -127,18 +130,17 @@ export class TouchInput implements InputSource {
     const actions = el('div', 'touch-actions', this.root)
     const rollLeft = el('button', 'touch-roll', actions)
     rollLeft.textContent = '⟲'
-    rollLeft.setAttribute('aria-label', 'Roll left')
+    rollLeft.setAttribute('aria-label', text.rollLeft)
     this.hold(rollLeft, (held) => (this.rollLeft = held))
     const rollRight = el('button', 'touch-roll', actions)
     rollRight.textContent = '⟳'
-    rollRight.setAttribute('aria-label', 'Roll right')
+    rollRight.setAttribute('aria-label', text.rollRight)
     this.hold(rollRight, (held) => (this.rollRight = held))
     const fire = el('button', 'touch-fire', actions)
-    fire.textContent = 'FIRE'
+    fire.textContent = text.fire
     this.hold(fire, (held) => (this.firing = held))
 
-    el('div', 'touch-rotate-hint', this.root).textContent =
-      'Turn your phone sideways for the best view'
+    el('div', 'touch-rotate-hint', this.root).textContent = text.rotatePhone
 
     this.applyMode(options.mode)
     if (options.mode === 'tilt') this.startSensor()
@@ -173,7 +175,7 @@ export class TouchInput implements InputSource {
   async setMode(mode: TouchMode): Promise<void> {
     if (mode === 'tilt') {
       if (!(await requestTiltPermission())) {
-        this.options.onNotice('Motion sensors are not available or not allowed.')
+        this.options.onNotice(t.value.game.noSensors)
         return
       }
       this.startSensor()
@@ -195,8 +197,9 @@ export class TouchInput implements InputSource {
   private applyMode(mode: TouchMode): void {
     this.mode = mode
     this.root.dataset.mode = mode
-    this.modeButton.textContent = mode === 'tilt' ? '📱 Tilt' : '🕹 Stick'
-    this.modeButton.title = 'Switch between tilting the phone and the on-screen stick'
+    const text = t.value.game
+    this.modeButton.textContent = mode === 'tilt' ? text.tilt : text.stick
+    this.modeButton.title = text.modeTitle
     this.recenterButton.hidden = mode !== 'tilt'
   }
 
@@ -210,7 +213,7 @@ export class TouchInput implements InputSource {
         this.stopSensor()
         this.applyMode('stick')
         this.options.onModeChange('stick')
-        this.options.onNotice('No motion sensor readings: switched to the on-screen stick.')
+        this.options.onNotice(t.value.game.noSensorReadings)
       }
     }, SENSOR_TIMEOUT_MS)
   }

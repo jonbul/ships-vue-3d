@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { alerts, dismissAlert } from '@/alerts'
+import { t } from '@/i18n'
 </script>
 
 <template>
   <div class="alerts" aria-live="polite">
     <div v-for="alert in alerts" :key="alert.id" class="alert" :class="alert.kind">
-      <button type="button" aria-label="Close" @click="dismissAlert(alert.id)">&times;</button>
+      <button type="button" :aria-label="t.common.close" @click="dismissAlert(alert.id)">
+        &times;
+      </button>
       <p v-for="(message, i) in alert.messages" :key="i">{{ message }}</p>
       <p v-if="alert.help">
         <a :href="alert.help.href" target="_blank" rel="noopener">{{ alert.help.text }}</a>

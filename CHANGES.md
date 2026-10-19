@@ -1,5 +1,19 @@
 CHANGES
 =======
+Version 0.5.0 - 2026-10-19
+------------------
+The site in Spanish and Basque (Euskara), as well as English.
+
+- A language picker at the right of the navigation bar (inside the menu on
+  phones) switches every page, the ship designer and the game's HUD.
+- The first visit picks the browser's language when it is one of the three,
+  English otherwise; the choice is remembered in the browser.
+- Messages from the server (login and save errors, game errors, the default
+  guest name) come in the chosen language too. Needs ships-go-3d 0.5.0; an
+  older server answers in English.
+- New ships start with a layer named in the chosen language ("Casco",
+  "Kaskoa"); existing ships keep their layer names.
+
 Version 0.3.0 - 2026-10-18
 ------------------
 Six new shapes in the ship designer, for more detailed ships.

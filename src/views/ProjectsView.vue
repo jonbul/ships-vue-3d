@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import { deleteProject, listProjects } from '@/api/projects'
 import { showAlert, showError } from '@/alerts'
 import ShipThumbnail from '@/components/ShipThumbnail.vue'
+import { locale, t } from '@/i18n'
 import type { Project } from '@/shared/shipModel'
 
 const projects = ref<Project[]>([])
@@ -20,32 +21,32 @@ onMounted(async () => {
 })
 
 async function remove(project: Project) {
-  if (!project._id || !confirm(`Delete "${project.name}"? This can't be undone.`)) return
+  if (!project._id || !confirm(t.value.projects.confirmDelete(project.name))) return
   try {
     await deleteProject(project._id)
     projects.value = projects.value.filter((p) => p._id !== project._id)
-    showAlert('success', `"${project.name}" deleted.`)
+    showAlert('success', t.value.projects.deleted(project.name))
   } catch (error) {
     showError(error)
   }
 }
 
 function formatDate(ms?: number): string {
-  return ms ? new Date(ms).toLocaleDateString() : ''
+  return ms ? new Date(ms).toLocaleDateString(locale.value) : ''
 }
 </script>
 
 <template>
   <div class="page">
     <div class="header">
-      <h1>My ships</h1>
-      <RouterLink class="button primary" to="/editor">+ New ship</RouterLink>
+      <h1>{{ t.projects.title }}</h1>
+      <RouterLink class="button primary" to="/editor">{{ t.projects.newShip }}</RouterLink>
     </div>
 
-    <p v-if="loading">Loading…</p>
+    <p v-if="loading">{{ t.projects.loading }}</p>
     <p v-else-if="projects.length === 0" class="empty">
-      You haven't designed any ships yet. Start with
-      <RouterLink to="/editor">a new one</RouterLink>.
+      {{ t.projects.emptyBefore }}<RouterLink to="/editor">{{ t.projects.emptyLink }}</RouterLink
+      >{{ t.projects.emptyAfter }}
     </p>
 
     <div class="grid">
@@ -54,10 +55,14 @@ function formatDate(ms?: number): string {
           <ShipThumbnail :layers="project.layers" :alt="project.name" />
         </RouterLink>
         <h3>{{ project.name }}</h3>
-        <p class="dates">Modified {{ formatDate(project.dateModified) }}</p>
+        <p class="dates">{{ t.projects.modified(formatDate(project.dateModified)) }}</p>
         <div class="card-actions">
-          <RouterLink class="button" :to="`/editor/${project._id}`">Edit</RouterLink>
-          <button class="danger" type="button" @click="remove(project)">Delete</button>
+          <RouterLink class="button" :to="`/editor/${project._id}`">{{
+            t.projects.edit
+          }}</RouterLink>
+          <button class="danger" type="button" @click="remove(project)">
+            {{ t.projects.delete }}
+          </button>
         </div>
       </article>
     </div>

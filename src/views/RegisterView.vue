@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import { register } from '@/api/auth'
 import { showAlert, showError } from '@/alerts'
+import { t } from '@/i18n'
 
 const router = useRouter()
 
@@ -15,7 +16,7 @@ const busy = ref(false)
 
 async function submit() {
   if (password.value !== cpassword.value) {
-    showAlert('error', "The passwords don't match.")
+    showAlert('error', t.value.register.mismatch)
     return
   }
   busy.value = true
@@ -26,7 +27,7 @@ async function submit() {
       password: password.value,
       cpassword: cpassword.value,
     })
-    showAlert('success', 'Account created. You can log in now.')
+    showAlert('success', t.value.register.created)
     await router.push('/login')
   } catch (error) {
     showError(error)
@@ -38,10 +39,10 @@ async function submit() {
 
 <template>
   <div class="page">
-    <h1>Register</h1>
+    <h1>{{ t.register.title }}</h1>
     <form class="form" @submit.prevent="submit">
       <label>
-        Username
+        {{ t.register.username }}
         <input
           v-model="username"
           autocomplete="username"
@@ -49,15 +50,15 @@ async function submit() {
           minlength="3"
           maxlength="20"
           pattern="[\p{L}\p{N}_.\-]+"
-          title="3 to 20 letters, digits, '_', '.' or '-'"
+          :title="t.register.usernameRule"
         />
       </label>
       <label>
-        Email
+        {{ t.register.email }}
         <input v-model="email" type="email" autocomplete="email" required />
       </label>
       <label>
-        Password
+        {{ t.register.password }}
         <input
           v-model="password"
           type="password"
@@ -67,7 +68,7 @@ async function submit() {
         />
       </label>
       <label>
-        Repeat password
+        {{ t.register.repeatPassword }}
         <input
           v-model="cpassword"
           type="password"
@@ -76,7 +77,7 @@ async function submit() {
           minlength="8"
         />
       </label>
-      <button class="primary" type="submit" :disabled="busy">Create account</button>
+      <button class="primary" type="submit" :disabled="busy">{{ t.register.submit }}</button>
     </form>
   </div>
 </template>

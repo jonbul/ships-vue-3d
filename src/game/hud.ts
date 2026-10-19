@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 import './game.css'
 
 export interface HudActions {
@@ -53,6 +55,7 @@ export class Hud {
   private readonly markerLayer: HTMLDivElement
 
   constructor(container: HTMLElement, actions: HudActions) {
+    const text = t.value.game
     this.root = el('div', 'hud')
     container.appendChild(this.root)
 
@@ -60,7 +63,7 @@ export class Hud {
 
     const top = el('div', 'hud-top', this.root)
     const leave = el('button', 'hud-leave', top)
-    leave.textContent = 'Leave'
+    leave.textContent = text.leave
     leave.addEventListener('click', () => actions.onLeave())
 
     const gauges = el('div', 'hud-gauges', top)
@@ -73,26 +76,26 @@ export class Hud {
 
     this.status = el('div', 'hud-status', this.root)
     this.warning = el('div', 'hud-warning', this.root)
-    this.warning.textContent = 'Leaving the battle zone'
+    this.warning.textContent = text.leavingZone
 
     this.hint = el('div', 'hud-hint', this.root)
-    this.hint.textContent =
-      'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · Tab scores · +/- radar range'
+    this.hint.textContent = text.hint
 
     // A button: tapping the radar's caption cycles its range (phones have no
     // +/- keys; it works with a mouse too).
     this.radarLabel = el('button', 'hud-radar-label', this.root)
-    this.radarLabel.title = 'Change the radar range (+ / -)'
+    this.radarLabel.title = text.radarTitle
     this.radarLabel.addEventListener('click', () => actions.onRadarTap())
 
     this.scoreboard = el('div', 'hud-scoreboard', this.root)
     const table = el('table', '', this.scoreboard)
     const head = el('tr', '', el('thead', '', table))
-    for (const title of ['Player', 'Kills', 'Deaths']) el('th', '', head).textContent = title
+    for (const title of [text.player, text.kills, text.deaths])
+      el('th', '', head).textContent = title
     this.scoreBody = el('tbody', '', table)
 
     this.death = el('div', 'hud-death', this.root)
-    el('h2', '', this.death).textContent = 'Destroyed'
+    el('h2', '', this.death).textContent = text.destroyed
     this.deathText = el('p', '', this.death)
     this.respawnButton = el('button', 'primary', this.death)
     this.respawnButton.addEventListener('click', () => actions.onRespawn())
@@ -100,7 +103,7 @@ export class Hud {
     this.warning.hidden = true
     this.scoreboard.hidden = true
     this.death.hidden = true
-    this.setStatus('Connecting…')
+    this.setStatus(text.connecting)
   }
 
   setLife(life: number, max: number): void {
@@ -156,12 +159,13 @@ export class Hud {
   /** Shows the death screen; the respawn button unlocks after `seconds`. */
   showDeath(killer: string | null, secondsLeft: number): void {
     this.death.hidden = false
-    this.deathText.textContent = killer ? `Shot down by ${killer}` : 'Your ship was destroyed'
+    const text = t.value.game
+    this.deathText.textContent = killer ? text.shotDownBy(killer) : text.shipDestroyed
     const ready = secondsLeft <= 0
     this.respawnButton.disabled = !ready
     this.respawnButton.textContent = ready
-      ? 'Respawn (Enter)'
-      : `Respawn in ${Math.ceil(secondsLeft)}`
+      ? text.respawnNow
+      : text.respawnIn(Math.ceil(secondsLeft))
   }
 
   hideDeath(): void {

@@ -7,6 +7,7 @@ import { showError } from '@/alerts'
 import ShipThumbnail from '@/components/ShipThumbnail.vue'
 import { Game } from '@/game/Game'
 import { requestTiltPermission } from '@/game/tilt'
+import { locale, t } from '@/i18n'
 import { toggleFullscreen, type TouchMode } from '@/game/touchInput'
 import { showAlert } from '@/alerts'
 import { session } from '@/session'
@@ -36,7 +37,7 @@ onMounted(async () => {
     defaults.value = ships.defaults
     own.value = ships.own
   } catch (error) {
-    showError(error, 'Could not load the ships.')
+    showError(error, t.value.play.loadFailed)
     return
   }
   const last = readStorage(SHIP_KEY)
@@ -60,17 +61,15 @@ async function start() {
     const tiltAllowed = touchMode.value === 'tilt' ? requestTiltPermission() : Promise.resolve(true)
     await fullscreen
     if (!(await tiltAllowed)) {
-      showAlert(
-        'info',
-        'Motion sensors are not available or not allowed: using the on-screen stick.',
-      )
+      showAlert('info', t.value.play.noSensors)
       setTouchMode('stick')
     }
   }
   playing.value = true
   await nextTick()
   game = new Game(gameContainer.value!, {
-    wsUrl: WS_URL,
+    // The server's own messages (errors, the guest name) in this language.
+    wsUrl: `${WS_URL}?lang=${locale.value}`,
     shipId: selectedId.value,
     name: guestName.value,
     onExit: stop,
@@ -113,16 +112,16 @@ function writeStorage(key: string, value: string) {
   <div v-if="playing" ref="gameContainer" class="game-container" />
 
   <div v-else class="page">
-    <h1>Choose your ship</h1>
+    <h1>{{ t.play.title }}</h1>
 
     <form class="start" @submit.prevent="start">
       <label v-if="!session.user" class="guest">
-        Your name
-        <input v-model="guestName" maxlength="20" placeholder="Guest" />
+        {{ t.play.yourName }}
+        <input v-model="guestName" maxlength="20" :placeholder="t.play.guest" />
       </label>
-      <p v-else class="muted">Playing as {{ session.user.username }}</p>
-      <div v-if="isTouch" class="steer" role="radiogroup" aria-label="Steer with">
-        <span class="muted">Steer with</span>
+      <p v-else class="muted">{{ t.play.playingAs(session.user.username) }}</p>
+      <div v-if="isTouch" class="steer" role="radiogroup" :aria-label="t.play.steerWith">
+        <span class="muted">{{ t.play.steerWith }}</span>
         <button
           type="button"
           :class="{ active: touchMode === 'stick' }"
@@ -130,7 +129,7 @@ function writeStorage(key: string, value: string) {
           role="radio"
           @click="setTouchMode('stick')"
         >
-          🕹 Stick
+          {{ t.play.stick }}
         </button>
         <button
           type="button"
@@ -139,14 +138,14 @@ function writeStorage(key: string, value: string) {
           role="radio"
           @click="setTouchMode('tilt')"
         >
-          📱 Tilt
+          {{ t.play.tilt }}
         </button>
       </div>
-      <button class="primary" type="submit" :disabled="!selectedId">Launch</button>
+      <button class="primary" type="submit" :disabled="!selectedId">{{ t.play.launch }}</button>
     </form>
 
     <template v-if="own.length">
-      <h2>My ships</h2>
+      <h2>{{ t.play.myShips }}</h2>
       <div class="ships">
         <button
           v-for="ship in own"
@@ -163,7 +162,7 @@ function writeStorage(key: string, value: string) {
       </div>
     </template>
 
-    <h2>Built-in ships</h2>
+    <h2>{{ t.play.builtIn }}</h2>
     <div class="ships">
       <button
         v-for="ship in defaults"
@@ -180,10 +179,12 @@ function writeStorage(key: string, value: string) {
     </div>
 
     <p v-if="!session.user && session.loaded" class="muted">
-      <RouterLink to="/login">Log in</RouterLink> to fly ships you designed yourself.
+      {{ t.play.loginBefore }}<RouterLink to="/login">{{ t.play.loginLink }}</RouterLink
+      >{{ t.play.loginAfter }}
     </p>
     <p v-else-if="session.user && !own.length" class="muted">
-      Design your own in <RouterLink to="/projects">My ships</RouterLink>.
+      {{ t.play.ownBefore }}<RouterLink to="/projects">{{ t.play.ownLink }}</RouterLink
+      >{{ t.play.ownAfter }}
     </p>
   </div>
 </template>

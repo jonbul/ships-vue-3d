@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { login } from '@/api/auth'
 import { showError } from '@/alerts'
+import { t } from '@/i18n'
 import { setUser } from '@/session'
 
 const route = useRoute()
@@ -31,25 +32,25 @@ async function submit() {
 
 <template>
   <div class="page">
-    <h1>Log in</h1>
+    <h1>{{ t.login.title }}</h1>
     <form class="form" @submit.prevent="submit">
       <label>
-        Email
+        {{ t.login.email }}
         <input v-model="email" type="email" autocomplete="email" required autofocus />
       </label>
       <label>
-        Password
+        {{ t.login.password }}
         <input v-model="password" type="password" autocomplete="current-password" required />
       </label>
       <label class="inline">
         <input v-model="rememberMe" type="checkbox" />
-        Remember me
+        {{ t.login.rememberMe }}
       </label>
-      <button class="primary" type="submit" :disabled="busy">Log in</button>
+      <button class="primary" type="submit" :disabled="busy">{{ t.login.submit }}</button>
       <p>
-        No account yet? <RouterLink to="/register">Register</RouterLink>.
+        {{ t.login.noAccount }} <RouterLink to="/register">{{ t.login.register }}</RouterLink>
         <br />
-        Accounts are shared with the 2D game.
+        {{ t.login.sharedAccounts }}
       </p>
     </form>
   </div>
