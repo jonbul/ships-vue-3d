@@ -13,6 +13,18 @@ export interface ScoreRow {
   kills: number
   deaths: number
   me: boolean
+  /** Assault mode: the team's name, and hits on the mothership. */
+  team?: string
+  hits?: number
+}
+
+/** Who is in the assault lobby, and when it starts. */
+export interface LobbyView {
+  names: Array<{ name: string; me: boolean }>
+  minPlayers: number
+  maxPlayers: number
+  /** Null while there aren't enough players to count down. */
+  secondsLeft: number | null
 }
 
 /** A ship to point out: where it is on screen, or the edge it is beyond. */
@@ -53,8 +65,22 @@ export class Hud {
   private radarLayout = ''
   private readonly markers = new Map<string, HTMLDivElement>()
   private readonly markerLayer: HTMLDivElement
+  private readonly gauges: HTMLDivElement
+  private readonly round: HTMLDivElement
+  private readonly roundRole: HTMLSpanElement
+  private readonly roundTime: HTMLSpanElement
+  private readonly mothershipFill: HTMLDivElement
+  private readonly lobby: HTMLDivElement
+  private readonly lobbyCount: HTMLParagraphElement
+  private readonly lobbyList: HTMLUListElement
+  private readonly lobbyStatus: HTMLParagraphElement
+  private readonly result: HTMLDivElement
+  private readonly resultTitle: HTMLHeadingElement
+  private readonly resultText: HTMLParagraphElement
+  private readonly resultReturn: HTMLParagraphElement
 
-  constructor(container: HTMLElement, actions: HudActions) {
+  /** `assault`: the assault mode's lobby, round gauges and scoreboard columns. */
+  constructor(container: HTMLElement, actions: HudActions, assault = false) {
     const text = t.value.game
     this.root = el('div', 'hud')
     container.appendChild(this.root)
@@ -67,9 +93,19 @@ export class Hud {
     leave.addEventListener('click', () => actions.onLeave())
 
     const gauges = el('div', 'hud-gauges', top)
+    this.gauges = gauges
     const life = el('div', 'hud-life', gauges)
     this.lifeFill = el('div', 'hud-life-fill', life)
     this.speedText = el('span', 'hud-speed', gauges)
+
+    // Assault: which team we're on, the time left, and the mothership's life.
+    this.round = el('div', 'hud-round', this.root)
+    this.roundRole = el('span', 'hud-round-role', this.round)
+    this.roundTime = el('span', 'hud-round-time', this.round)
+    const mothership = el('div', 'hud-mothership', this.round)
+    el('span', '', mothership).textContent = text.mothership
+    const mothershipLife = el('div', 'hud-life', mothership)
+    this.mothershipFill = el('div', 'hud-life-fill', mothershipLife)
 
     this.feed = el('div', 'hud-feed', this.root)
     el('div', 'hud-crosshair', this.root)
@@ -90,8 +126,10 @@ export class Hud {
     this.scoreboard = el('div', 'hud-scoreboard', this.root)
     const table = el('table', '', this.scoreboard)
     const head = el('tr', '', el('thead', '', table))
-    for (const title of [text.player, text.kills, text.deaths])
-      el('th', '', head).textContent = title
+    const titles = assault
+      ? [text.player, text.team, text.kills, text.hits, text.deaths]
+      : [text.player, text.kills, text.deaths]
+    for (const title of titles) el('th', '', head).textContent = title
     this.scoreBody = el('tbody', '', table)
 
     this.death = el('div', 'hud-death', this.root)
@@ -100,9 +138,24 @@ export class Hud {
     this.respawnButton = el('button', 'primary', this.death)
     this.respawnButton.addEventListener('click', () => actions.onRespawn())
 
+    this.lobby = el('div', 'hud-lobby', this.root)
+    el('h2', '', this.lobby).textContent = text.lobbyTitle
+    this.lobbyCount = el('p', 'hud-lobby-count', this.lobby)
+    this.lobbyList = el('ul', '', this.lobby)
+    this.lobbyStatus = el('p', 'hud-lobby-status', this.lobby)
+    el('p', 'hud-lobby-hint', this.lobby).textContent = text.lobbyHint
+
+    this.result = el('div', 'hud-result', this.root)
+    this.resultTitle = el('h2', '', this.result)
+    this.resultText = el('p', '', this.result)
+    this.resultReturn = el('p', 'hud-result-return', this.result)
+
     this.warning.hidden = true
     this.scoreboard.hidden = true
     this.death.hidden = true
+    this.round.hidden = true
+    this.lobby.hidden = true
+    this.result.hidden = true
     this.setStatus(text.connecting)
   }
 
@@ -148,7 +201,11 @@ export class Hud {
       ...rows.map((row) => {
         const tr = document.createElement('tr')
         if (row.me) tr.className = 'me'
-        for (const value of [row.name, String(row.kills), String(row.deaths)]) {
+        const values =
+          row.team === undefined
+            ? [row.name, String(row.kills), String(row.deaths)]
+            : [row.name, row.team, String(row.kills), String(row.hits ?? 0), String(row.deaths)]
+        for (const value of values) {
           el('td', '', tr).textContent = value
         }
         return tr
@@ -170,6 +227,60 @@ export class Hud {
 
   hideDeath(): void {
     this.death.hidden = true
+  }
+
+  /** Hides our own life and speed: a gunner has neither. */
+  setGaugesVisible(visible: boolean): void {
+    this.gauges.hidden = !visible
+  }
+
+  /** The assault round's gauges; null hides them. */
+  setRound(round: { role: string; secondsLeft: number; mothershipLife: number } | null): void {
+    this.round.hidden = round === null
+    if (!round) return
+    if (this.roundRole.textContent !== round.role) this.roundRole.textContent = round.role
+    const seconds = Math.max(0, Math.ceil(round.secondsLeft))
+    const time = `⏱ ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+    if (this.roundTime.textContent !== time) this.roundTime.textContent = time
+    const fraction = Math.max(0, Math.min(1, round.mothershipLife))
+    this.mothershipFill.style.width = `${fraction * 100}%`
+    this.mothershipFill.classList.toggle('low', fraction <= 0.3)
+  }
+
+  /** The assault lobby; null hides it. */
+  setLobby(lobby: LobbyView | null): void {
+    this.lobby.hidden = lobby === null
+    if (!lobby) return
+    const text = t.value.game
+    this.lobbyCount.textContent = text.lobbyCount(lobby.names.length, lobby.maxPlayers)
+    const items = lobby.names.map(({ name, me }) => {
+      const li = document.createElement('li')
+      li.textContent = me ? `${name} ${text.you}` : name
+      if (me) li.className = 'me'
+      return li
+    })
+    if (
+      items.length !== this.lobbyList.children.length ||
+      items.some((li, i) => li.textContent !== this.lobbyList.children[i]!.textContent)
+    ) {
+      this.lobbyList.replaceChildren(...items)
+    }
+    const status =
+      lobby.secondsLeft === null
+        ? text.lobbyWaiting(lobby.minPlayers)
+        : text.lobbyStarting(Math.max(0, Math.ceil(lobby.secondsLeft)))
+    if (this.lobbyStatus.textContent !== status) this.lobbyStatus.textContent = status
+  }
+
+  /** The end of an assault round; null hides it. */
+  setResult(result: { title: string; text: string; secondsLeft: number } | null): void {
+    this.result.hidden = result === null
+    if (!result) return
+    this.resultTitle.textContent = result.title
+    this.resultText.textContent = result.text
+    this.resultReturn.textContent = t.value.game.backToLobby(
+      Math.max(0, Math.ceil(result.secondsLeft)),
+    )
   }
 
   /**

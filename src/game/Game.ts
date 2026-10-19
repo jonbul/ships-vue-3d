@@ -13,12 +13,27 @@ import { t } from '@/i18n'
 import { buildShip } from '@/shared/shipMesh'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
-import { Hud, type Marker } from './hud'
-import { CombinedInput, KeyboardMouseInput, type InputSource } from './input'
+import { Hud, type Marker, type ScoreRow } from './hud'
+import { Hull } from './hull'
+import { CombinedInput, KeyboardMouseInput, type InputSource, type InputState } from './input'
 import { Connection } from './net'
-import type { PlayerInfo, PlayerState, Q4, ServerMessage, Settings, V3 } from './protocol'
+import {
+  MOTHERSHIP,
+  type AssaultRules,
+  type LobbyPlayer,
+  type MothershipInfo,
+  type PlayerInfo,
+  type PlayerState,
+  type Q4,
+  type Seat,
+  type ServerMessage,
+  type Settings,
+  type Team,
+  type V3,
+} from './protocol'
 import { Radar } from './radar'
 import { TouchInput, type TouchMode } from './touchInput'
+import { aimFrom, aimQuaternion, buildTurret, stepAim, type Aim } from './turret'
 import { World } from './world'
 
 export interface GameOptions {
@@ -27,6 +42,11 @@ export interface GameOptions {
   shipId: string
   /** Shown to others when playing as a guest; ignored for a logged-in user. */
   name: string
+  /**
+   * The assault mode: `wsUrl` is its socket, and the game waits in the
+   * server's lobby before each round and after it.
+   */
+  assault?: boolean
   /** The player chose to leave, or the game ended (e.g. disconnected). */
   onExit(): void
   /**
@@ -64,6 +84,22 @@ interface RemoteShip extends Ship {
   reportedQuaternion: Quaternion
   velocity: Vector3
   reportedAt: number
+}
+
+interface Mothership {
+  group: Group
+  hull: Hull
+  life: number
+  maxLife: number
+}
+
+interface Lobby {
+  myId: string
+  players: LobbyPlayer[]
+  minPlayers: number
+  maxPlayers: number
+  /** performance.now() time; null while not counting down. */
+  startsAt: number | null
 }
 
 interface Bullet {
@@ -115,6 +151,20 @@ export class Game {
   private lastFire = 0
   private lastStateSent = 0
 
+  // Assault mode. A round's state is cleared by clearRound().
+  private readonly assault: boolean
+  private connected = false
+  private lobby: Lobby | null = null
+  private rules: AssaultRules | null = null
+  private team: Team | null = null
+  /** Ours, when we are a gunner. */
+  private seat: Seat | null = null
+  private readonly aim: Aim = { yaw: 0, pitch: 0 }
+  private mothership: Mothership | null = null
+  private roundEndsAt = 0
+  private result: { winner: Team; returnAt: number } | null = null
+  private readonly flightHint: string
+
   private frame = 0
   private lastFrameTime = 0
   private destroyed = false
@@ -133,12 +183,17 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.root.appendChild(this.renderer.domElement)
 
+    this.assault = options.assault ?? false
     this.effects = new Effects(this.scene)
-    this.hud = new Hud(this.root, {
-      onLeave: () => this.exit(),
-      onRespawn: () => this.requestRespawn(),
-      onRadarTap: () => this.radar.cycle(),
-    })
+    this.hud = new Hud(
+      this.root,
+      {
+        onLeave: () => this.exit(),
+        onRespawn: () => this.requestRespawn(),
+        onRadarTap: () => this.radar.cycle(),
+      },
+      this.assault,
+    )
     this.hintTimer = setTimeout(() => this.hud.setHintVisible(false), 15000)
     if (options.touch) {
       // Phones: on-screen controls (and sensors), plus the keyboard for
@@ -157,6 +212,7 @@ export class Game {
     } else {
       this.input = new KeyboardMouseInput(this.renderer.domElement)
     }
+    this.flightHint = options.touch ? t.value.game.touchHint : t.value.game.hint
     window.addEventListener('keydown', this.onKeyDown)
     document.addEventListener('visibilitychange', this.onVisibilityChange)
 
@@ -170,7 +226,8 @@ export class Game {
       onMessage: (message) => this.handle(message),
       // Closed before the welcome: it never connected, which is usually the
       // server being down or its certificate not trusted for this address.
-      onClose: () => this.end(this.settings ? t.value.game.disconnected : t.value.game.cantConnect),
+      onClose: () =>
+        this.end(this.connected ? t.value.game.disconnected : t.value.game.cantConnect),
     })
 
     this.lastFrameTime = performance.now()
@@ -191,6 +248,7 @@ export class Game {
     this.effects.dispose()
     this.radar.dispose()
     this.world?.dispose()
+    // The mothership's and turrets' meshes are shared like ship parts.
     // Ship meshes share geometries and materials owned by shipMesh.ts,
     // which must outlive this game: only the renderer's GPU copies go.
     this.renderer.dispose()
@@ -217,25 +275,43 @@ export class Game {
       case 'fire':
         return this.onRemoteFire(message.id, message.p, message.d)
       case 'damage':
-        return this.onDamage(message.target, message.bulletId, message.life)
+        return this.onDamage(message.target, message.from, message.bulletId, message.life)
       case 'died':
         return this.onDied(message.target, message.from)
       case 'respawned':
         return this.onRespawned(message.id, message.life, message.p, message.q)
       case 'error':
         return this.end(message.message)
+      case 'lobby':
+        return this.onLobby(message)
+      case 'roundStart':
+        return this.onRoundStart(message)
+      case 'roundOver':
+        this.result = {
+          winner: message.winner,
+          returnAt: performance.now() + message.returnInMs,
+        }
+        this.hud.hideDeath()
+        return
     }
   }
 
   private onWelcome(id: string, settings: Settings, players: PlayerInfo[]): void {
+    this.connected = true
     this.settings = settings
     this.myId = id
-    this.world = new World(this.scene, settings.worldRadius)
+    this.world ??= new World(this.scene, settings.worldRadius)
     for (const player of players) {
       if (player.id === id) {
         this.me = this.createShip(player)
+        this.team = player.team ?? null
+        this.seat = player.seat ?? null
+        // A gunner looks out from inside their own turret.
+        if (this.seat) this.me.group.visible = false
         this.flight.position.fromArray(player.p)
         this.flight.quaternion.fromArray(player.q)
+        this.flight.speed = 0
+        Object.assign(this.aim, aimFrom(this.flight.quaternion))
         this.alive = !player.dead
         this.placeCameraBehind()
       } else {
@@ -244,6 +320,108 @@ export class Game {
     }
     this.hud.setStatus(null)
     this.hud.setLife(this.me?.info.life ?? 0, settings.maxLife)
+    this.hud.setGaugesVisible(this.seat === null)
+  }
+
+  // --- Assault mode ----------------------------------------------------------
+
+  private onLobby(message: Extract<ServerMessage, { type: 'lobby' }>): void {
+    this.connected = true
+    // Back from a round: everything in it goes.
+    if (this.me || this.result) this.clearRound()
+    this.lobby = {
+      myId: message.id,
+      players: message.players,
+      minPlayers: message.minPlayers,
+      maxPlayers: message.maxPlayers,
+      startsAt: message.startsInMs === undefined ? null : performance.now() + message.startsInMs,
+    }
+    this.hud.setStatus(null)
+    this.hud.setGaugesVisible(false)
+    this.updateLobby(performance.now())
+  }
+
+  private updateLobby(now: number): void {
+    const lobby = this.lobby
+    if (!lobby) return
+    this.hud.setLobby({
+      names: lobby.players.map((p) => ({ name: p.name, me: p.id === lobby.myId })),
+      minPlayers: lobby.minPlayers,
+      maxPlayers: lobby.maxPlayers,
+      secondsLeft: lobby.startsAt === null ? null : (lobby.startsAt - now) / 1000,
+    })
+  }
+
+  private onRoundStart(message: Extract<ServerMessage, { type: 'roundStart' }>): void {
+    this.clearRound()
+    this.lobby = null
+    this.hud.setLobby(null)
+    this.rules = message.rules
+    this.roundEndsAt = performance.now() + message.endsInMs
+    this.mothership = this.createMothership(message.mothership)
+    this.onWelcome(message.id, message.settings, message.players)
+
+    const text = t.value.game
+    const gunner = this.team === 'gunners'
+    this.hud.message(gunner ? text.roleGunner : text.roleAttacker)
+    this.hud.setHint(
+      gunner ? (this.options.touch ? text.gunnerTouchHint : text.gunnerHint) : this.flightHint,
+    )
+    this.hud.setHintVisible(true)
+    clearTimeout(this.hintTimer)
+    this.hintTimer = setTimeout(() => this.hud.setHintVisible(false), 10000)
+  }
+
+  private createMothership(info: MothershipInfo): Mothership {
+    const group = new Group()
+    const model = buildShip(info.ship.layers)
+    model.scale.setScalar(info.scale)
+    group.add(model)
+    this.scene.add(group)
+    return {
+      group,
+      hull: new Hull(info.ship.layers, info.scale),
+      life: info.life,
+      maxLife: info.maxLife,
+    }
+  }
+
+  /** Drops everything from the last round: ships, bullets, the mothership. */
+  private clearRound(): void {
+    if (this.me) this.scene.remove(this.me.group)
+    this.me = null
+    for (const id of this.remotes.keys()) this.removeRemote(id)
+    for (const bullet of [...this.myBullets.values(), ...this.otherBullets.values()]) {
+      this.effects.releaseBullet(bullet.mesh)
+    }
+    this.myBullets.clear()
+    this.otherBullets.clear()
+    if (this.mothership) this.scene.remove(this.mothership.group)
+    this.mothership = null
+    this.alive = false
+    this.team = null
+    this.seat = null
+    this.result = null
+    this.hud.hideDeath()
+    this.hud.setResult(null)
+    this.hud.setRound(null)
+    this.hud.setMarkers([])
+    this.hud.showScoreboard(false)
+    // No ship of our own in the lobby.
+    this.hud.setGaugesVisible(false)
+  }
+
+  /** Whether our bullets can hit this player: everybody in a free for all, only attackers for a gunner. */
+  private isTarget(info: PlayerInfo): boolean {
+    return !this.assault || (this.team === 'gunners' && info.team === 'attackers')
+  }
+
+  private resultText(winner: Team) {
+    const text = t.value.game
+    return {
+      title: winner === this.team ? text.youWon : text.youLost,
+      text: winner === 'attackers' ? text.attackersWin : text.gunnersWin,
+    }
   }
 
   private onSnapshot(states: PlayerState[]): void {
@@ -273,11 +451,20 @@ export class Game {
     })
   }
 
-  private onDamage(target: string, bulletId: string, life: number): void {
+  private onDamage(target: string, from: string, bulletId: string, life: number): void {
     const bullet = this.otherBullets.get(bulletId)
     if (bullet) {
       this.effects.releaseBullet(bullet.mesh)
       this.otherBullets.delete(bulletId)
+    }
+    if (target === MOTHERSHIP) {
+      if (!this.mothership) return
+      this.mothership.life = life
+      const shooter = from === this.myId ? this.me : this.remotes.get(from)
+      if (shooter) shooter.info.hits = (shooter.info.hits ?? 0) + 1
+      // Our own hits sparked when the bullet struck; others' spark now.
+      if (bullet && !document.hidden) this.effects.explosion(bullet.position, 2.5, 0xffe082)
+      return
     }
     const ship = target === this.myId ? this.me : this.remotes.get(target)
     if (!ship) return
@@ -341,10 +528,15 @@ export class Game {
   // --- Ships -----------------------------------------------------------------
 
   private createShip(info: PlayerInfo): Ship {
-    const group = new Group()
-    const model = buildShip(info.ship.layers)
-    model.scale.setScalar(info.scale)
-    group.add(model)
+    let group: Group
+    if (info.seat) {
+      group = buildTurret(this.settings?.shipRadius ?? 4)
+    } else {
+      group = new Group()
+      const model = buildShip(info.ship.layers)
+      model.scale.setScalar(info.scale)
+      group.add(model)
+    }
     group.position.fromArray(info.p)
     group.quaternion.fromArray(info.q)
     group.visible = !info.dead
@@ -381,6 +573,7 @@ export class Game {
     const dt = Math.min((time - this.lastFrameTime) / 1000, 0.1)
     this.lastFrameTime = time
     if (this.settings && this.me) this.update(dt, time, this.settings, this.me)
+    else this.updateLobby(time)
     this.renderer.render(this.scene, this.camera)
     if (this.me) {
       const size = this.radarSize()
@@ -403,15 +596,24 @@ export class Game {
 
   /** Where every live enemy is, for the radar. */
   private *contacts(): Generator<Vector3> {
+    if (this.mothership && this.team === 'attackers') yield this.mothership.group.position
     for (const remote of this.remotes.values()) {
-      if (!remote.info.dead) yield remote.group.position
+      if (!remote.info.dead && this.isTarget(remote.info)) yield remote.group.position
     }
   }
 
   private update(dt: number, now: number, settings: Settings, me: Ship): void {
     const input = this.input.read(dt)
 
-    if (this.alive) {
+    if (this.result) {
+      // The round is over: nothing more to fly or shoot.
+      this.hud.setResult({
+        ...this.resultText(this.result.winner),
+        secondsLeft: (this.result.returnAt - now) / 1000,
+      })
+    } else if (this.seat) {
+      this.aimTurret(input, dt, now, this.seat, settings, me)
+    } else if (this.alive) {
       if (input.speedTarget !== undefined) {
         // A held speed (the touch throttle): accelerate towards it, easing
         // off as it gets close.
@@ -444,10 +646,35 @@ export class Game {
     this.hud.setBoundaryWarning(this.flight.position.length() > settings.worldRadius * 0.92)
     this.hud.setMarkers(this.markers())
     this.radar.update(this.flight.position, this.flight.quaternion, this.contacts())
-    this.hud.showScoreboard(
-      input.scoreboard || !this.alive,
-      input.scoreboard || !this.alive ? this.scores() : [],
-    )
+    const scores = input.scoreboard || !this.alive || this.result !== null
+    this.hud.showScoreboard(scores, scores ? this.scores() : [])
+    if (this.mothership) {
+      this.hud.setRound({
+        role: this.team === 'gunners' ? t.value.game.gunner : t.value.game.attacker,
+        secondsLeft: this.result ? 0 : (this.roundEndsAt - now) / 1000,
+        mothershipLife: this.mothership.life / this.mothership.maxLife,
+      })
+    }
+  }
+
+  /** A gunner: the turret stays in its seat and only turns. */
+  private aimTurret(
+    input: InputState,
+    dt: number,
+    now: number,
+    seat: Seat,
+    settings: Settings,
+    me: Ship,
+  ): void {
+    stepAim(this.aim, input, this.rules?.gunnerTurnRate ?? 1.5, dt)
+    aimQuaternion(this.aim, this.flight.quaternion)
+    this.flight.position.fromArray(seat.p)
+    this.flight.speed = 0
+    me.group.position.copy(this.flight.position)
+    me.group.quaternion.copy(this.flight.quaternion)
+    const cooldown = this.rules?.gunnerCooldownMs ?? settings.fireCooldownMs
+    if (input.fire && now - this.lastFire >= cooldown) this.fire(now, settings)
+    if (now - this.lastStateSent >= 1000 / settings.tickRate) this.sendState(now)
   }
 
   private sendState(now: number): void {
@@ -495,9 +722,15 @@ export class Game {
       bullet.position.addScaledVector(bullet.direction, step)
       bullet.mesh.position.copy(bullet.position)
       let done = now > bullet.expiresAt
-      if (!done) {
+      if (!done && this.team === 'attackers' && this.mothership) {
+        if (this.mothership.hull.segmentHits(bullet.previous, bullet.position)) {
+          this.connection.send({ type: 'hit', bulletId: id, target: MOTHERSHIP })
+          if (!document.hidden) this.effects.explosion(bullet.position, 2.5, 0xffe082)
+          done = true
+        }
+      } else if (!done) {
         for (const [targetId, remote] of this.remotes) {
-          if (remote.info.dead) continue
+          if (remote.info.dead || !this.isTarget(remote.info)) continue
           if (
             segmentHitsSphere(
               bullet.previous,
@@ -552,6 +785,15 @@ export class Game {
     if (!this.alive && !snap) return // Watch the wreck from where we were.
     const r = settings.shipRadius
     const q = this.flight.quaternion
+    if (this.seat) {
+      // A gunner looks out from the top of the turret (the bottom, under
+      // the hull), with the world's up: the mothership is level.
+      const forward = this.cameraTarget.copy(FORWARD).applyQuaternion(q)
+      this.camera.position.copy(this.flight.position).addScaledVector(UP, this.seat.up * r * 0.8)
+      this.camera.up.copy(UP)
+      this.camera.lookAt(this.cameraEye.copy(this.camera.position).addScaledVector(forward, 100))
+      return
+    }
     this.cameraEye
       .set(0, r * 1.3, -r * 3.6)
       .applyQuaternion(q)
@@ -587,9 +829,26 @@ export class Game {
     const width = this.root.clientWidth
     const height = this.root.clientHeight
     const markers: Marker[] = []
+    const targets: Array<{ id: string; name: string; life: number; position: Vector3 }> = []
+    if (this.mothership && this.team === 'attackers') {
+      targets.push({
+        id: MOTHERSHIP,
+        name: t.value.game.mothership,
+        life: this.mothership.life / this.mothership.maxLife,
+        position: this.mothership.group.position,
+      })
+    }
     for (const [id, remote] of this.remotes) {
-      if (remote.info.dead) continue
-      const p = this.projected.copy(remote.group.position)
+      if (remote.info.dead || !this.isTarget(remote.info)) continue
+      targets.push({
+        id,
+        name: remote.info.name,
+        life: this.settings ? remote.info.life / this.settings.maxLife : 1,
+        position: remote.group.position,
+      })
+    }
+    for (const { id, name, life, position } of targets) {
+      const p = this.projected.copy(position)
       p.applyMatrix4(this.camera.matrixWorldInverse)
       const behind = p.z > 0 // Camera space looks down -Z.
       p.applyMatrix4(this.camera.projectionMatrix)
@@ -608,8 +867,8 @@ export class Game {
       }
       markers.push({
         id,
-        name: remote.info.name,
-        lifeFraction: this.settings ? remote.info.life / this.settings.maxLife : 1,
+        name,
+        lifeFraction: life,
         x: ((x + 1) / 2) * width,
         y: ((1 - y) / 2) * height - (onScreen ? 28 : 0),
         onScreen,
@@ -619,16 +878,27 @@ export class Game {
     return markers
   }
 
-  private scores() {
+  private scores(): ScoreRow[] {
     const ships: Ship[] = [...(this.me ? [this.me] : []), ...this.remotes.values()]
+    const text = t.value.game
     return ships
       .map((ship) => ({
         name: ship.info.name,
         kills: ship.info.kills,
         deaths: ship.info.deaths,
         me: ship === this.me,
+        ...(this.assault && {
+          team: ship.info.team === 'gunners' ? text.gunner : text.attacker,
+          hits: ship.info.hits ?? 0,
+          gunner: ship.info.team === 'gunners',
+        }),
       }))
-      .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths)
+      .sort(
+        (a, b) =>
+          Number(a.gunner ?? 0) - Number(b.gunner ?? 0) ||
+          b.kills + (b.hits ?? 0) - (a.kills + (a.hits ?? 0)) ||
+          a.deaths - b.deaths,
+      )
   }
 
   // --- Misc ------------------------------------------------------------------

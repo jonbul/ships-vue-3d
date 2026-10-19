@@ -15,6 +15,10 @@ import { session } from '@/session'
 const GUEST_NAME_KEY = 'ships3d.guestName'
 const SHIP_KEY = 'ships3d.lastShip'
 const TOUCH_MODE_KEY = 'ships3d.touchMode'
+const MODE_KEY = 'ships3d.gameMode'
+
+type GameMode = 'free' | 'assault'
+const mode = ref<GameMode>(readStorage(MODE_KEY) === 'assault' ? 'assault' : 'free')
 
 // A phone or tablet: its main pointer is a finger. They get on-screen
 // controls (and the choice of steering by tilting the device).
@@ -51,6 +55,7 @@ onBeforeUnmount(() => stop())
 async function start() {
   if (!selectedId.value) return
   writeStorage(SHIP_KEY, selectedId.value)
+  writeStorage(MODE_KEY, mode.value)
   if (!session.user) writeStorage(GUEST_NAME_KEY, guestName.value)
   if (isTouch) {
     // Full screen and (on iOS) the motion-sensor prompt are only allowed
@@ -69,7 +74,8 @@ async function start() {
   await nextTick()
   game = new Game(gameContainer.value!, {
     // The server's own messages (errors, the guest name) in this language.
-    wsUrl: `${WS_URL}?lang=${locale.value}`,
+    wsUrl: `${WS_URL}${mode.value === 'assault' ? '/assault' : ''}?lang=${locale.value}`,
+    assault: mode.value === 'assault',
     shipId: selectedId.value,
     name: guestName.value,
     onExit: stop,
@@ -113,6 +119,31 @@ function writeStorage(key: string, value: string) {
 
   <div v-else class="page">
     <h1>{{ t.play.title }}</h1>
+
+    <div class="modes" role="radiogroup" :aria-label="t.play.mode">
+      <button
+        type="button"
+        class="mode"
+        :class="{ active: mode === 'free' }"
+        :aria-checked="mode === 'free'"
+        role="radio"
+        @click="mode = 'free'"
+      >
+        <strong>{{ t.play.freeForAll }}</strong>
+        <span class="muted">{{ t.play.freeForAllText }}</span>
+      </button>
+      <button
+        type="button"
+        class="mode"
+        :class="{ active: mode === 'assault' }"
+        :aria-checked="mode === 'assault'"
+        role="radio"
+        @click="mode = 'assault'"
+      >
+        <strong>{{ t.play.assault }}</strong>
+        <span class="muted">{{ t.play.assaultText }}</span>
+      </button>
+    </div>
 
     <form class="start" @submit.prevent="start">
       <label v-if="!session.user" class="guest">
@@ -206,6 +237,23 @@ function writeStorage(key: string, value: string) {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+.modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+}
+.mode.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 .steer button.active {
   border-color: var(--accent);

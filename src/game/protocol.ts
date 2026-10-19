@@ -27,6 +27,35 @@ export interface Settings {
   respawnDelayMs: number
 }
 
+/**
+ * The assault mode's rules, sent with each round (game/settings.go). In a
+ * round, Settings.maxLife and fireCooldownMs are the attackers'.
+ */
+export interface AssaultRules {
+  minPlayers: number
+  maxPlayers: number
+  lobbyWaitMs: number
+  attackersPerGunner: number
+  attackerLife: number
+  mothershipLife: number
+  mothershipRadius: number
+  attackerCooldownMs: number
+  gunnerCooldownMs: number
+  /** Radians a second. */
+  gunnerTurnRate: number
+  spawnDistance: number
+  roundMs: number
+  resultsMs: number
+}
+
+export type Team = 'attackers' | 'gunners'
+
+/** A gunner's turret on the mothership: +1 up on its top, -1 under it. */
+export interface Seat {
+  p: V3
+  up: number
+}
+
 export interface ShipInfo {
   id: string
   name: string
@@ -48,6 +77,12 @@ export interface PlayerInfo {
   p: V3
   q: Q4
   v: V3
+  /** Assault mode only. */
+  team?: Team
+  /** Assault mode only: an attacker's hits on the mothership. */
+  hits?: number
+  /** Assault mode only: a gunner's turret. */
+  seat?: Seat
 }
 
 export interface PlayerState {
@@ -67,6 +102,44 @@ export type ServerMessage =
   | { type: 'died'; target: string; from: string }
   | { type: 'respawned'; id: string; life: number; p: V3; q: Q4 }
   | { type: 'error'; message: string }
+  // Assault mode (/ws/assault) only. Damage to the mothership comes as
+  // `damage` with target MOTHERSHIP.
+  | {
+      type: 'lobby'
+      id: string
+      players: LobbyPlayer[]
+      minPlayers: number
+      maxPlayers: number
+      /** Only while counting down. */
+      startsInMs?: number
+    }
+  | {
+      type: 'roundStart'
+      id: string
+      settings: Settings
+      rules: AssaultRules
+      mothership: MothershipInfo
+      players: PlayerInfo[]
+      endsInMs: number
+    }
+  | { type: 'roundOver'; winner: Team; returnInMs: number }
+
+/** The target of a hit on the mothership, in `hit` and `damage`. */
+export const MOTHERSHIP = 'mothership'
+
+export interface LobbyPlayer {
+  id: string
+  /** Free text typed by a guest: only ever render it as text. */
+  name: string
+  guest: boolean
+}
+
+export interface MothershipInfo {
+  ship: ShipInfo
+  scale: number
+  life: number
+  maxLife: number
+}
 
 export type ClientMessage =
   | { type: 'join'; shipId: string; name: string }

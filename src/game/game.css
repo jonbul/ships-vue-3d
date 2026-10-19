@@ -398,3 +398,75 @@
     white-space: nowrap;
   }
 }
+
+/* --- Assault mode --------------------------------------------------------- */
+
+.hud-round {
+  position: absolute;
+  top: calc(max(0.8rem, env(safe-area-inset-top)) + 2.4rem);
+  left: max(0.8rem, env(safe-area-inset-left));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.hud-round-role {
+  font-weight: 600;
+}
+.hud-round-time {
+  font-variant-numeric: tabular-nums;
+}
+.hud-mothership {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.hud-mothership .hud-life-fill {
+  background: #ffb74d;
+}
+
+.hud-lobby,
+.hud-result {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(26rem, calc(100% - 2rem));
+  max-height: calc(100% - 6rem);
+  overflow-y: auto;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  background: rgb(10 14 23 / 0.88);
+  text-align: center;
+}
+.hud-lobby h2,
+.hud-result h2 {
+  margin: 0 0 0.5rem;
+}
+.hud-lobby ul {
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.hud-lobby li.me {
+  color: #4fc3f7;
+}
+.hud-lobby-status {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.hud-lobby-hint,
+.hud-result-return {
+  color: #b0bccc;
+  font-size: 0.85rem;
+}
+/* Above the scoreboard, which shows the final scores meanwhile. */
+.hud-result {
+  top: max(4rem, 6%);
+  transform: translateX(-50%);
+  padding: 0.6rem 1rem;
+}

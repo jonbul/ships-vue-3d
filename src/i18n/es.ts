@@ -222,6 +222,12 @@ const es: Messages = {
     loadFailed: 'No se han podido cargar las naves.',
     noSensors:
       'Los sensores de movimiento no están disponibles o no tienen permiso: se usa el joystick de la pantalla.',
+    mode: 'Modo de juego',
+    freeForAll: 'Todos contra todos',
+    freeForAllText: 'Cada uno por su cuenta; entra cuando quieras.',
+    assault: 'Asalto',
+    assaultText:
+      'Dos equipos alrededor de una nave nodriza: los atacantes van a por ella y los artilleros la defienden desde sus torretas. Salas de 4 a 20 jugadores.',
   },
 
   game: {
@@ -255,6 +261,28 @@ const es: Messages = {
     modeTitle: 'Cambiar entre inclinar el móvil y el joystick de la pantalla',
     noSensors: 'Los sensores de movimiento no están disponibles o no tienen permiso.',
     noSensorReadings: 'Los sensores de movimiento no responden: se usa el joystick de la pantalla.',
+    lobbyTitle: 'Sala de espera del asalto',
+    lobbyCount: (players: number, max: number) => `${players} / ${max} jugadores`,
+    lobbyWaiting: (min: number) => `Esperando a que haya al menos ${min} jugadores…`,
+    lobbyStarting: (seconds: number) => `Empieza en ${seconds} s`,
+    lobbyHint:
+      'Cada jugador que entra reinicia la cuenta atrás. Los equipos se reparten al empezar: más o menos un artillero por cada tres atacantes.',
+    you: '(tú)',
+    mothership: 'Nave nodriza',
+    team: 'Equipo',
+    hits: 'Impactos',
+    attacker: 'Atacante',
+    gunner: 'Artillero',
+    roleAttacker: 'Eres atacante: destruye la nave nodriza',
+    roleGunner: 'Eres artillero: derriba a los atacantes antes de que destruyan la nave nodriza',
+    attackersWin: '¡Los atacantes han destruido la nave nodriza!',
+    gunnersWin: '¡La nave nodriza ha resistido!',
+    youWon: 'Has ganado',
+    youLost: 'Has perdido',
+    backToLobby: (seconds: number) => `Vuelta a la sala de espera en ${seconds}`,
+    gunnerHint:
+      'Haz clic para apuntar con el ratón · flechas apuntar · Espacio disparar · Tab marcador',
+    gunnerTouchHint: 'Joystick o inclinación para apuntar la torreta · DISPARAR',
   },
 }
 

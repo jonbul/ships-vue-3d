@@ -220,6 +220,12 @@ const en = {
     ownAfter: '.',
     loadFailed: 'Could not load the ships.',
     noSensors: 'Motion sensors are not available or not allowed: using the on-screen stick.',
+    mode: 'Game mode',
+    freeForAll: 'Free for all',
+    freeForAllText: 'Every pilot for themselves; join any time.',
+    assault: 'Assault',
+    assaultText:
+      'Two teams around a mothership: attackers fly at it, gunners defend it from its turrets. Rooms of 4 to 20 players.',
   },
 
   game: {
@@ -253,6 +259,27 @@ const en = {
     modeTitle: 'Switch between tilting the phone and the on-screen stick',
     noSensors: 'Motion sensors are not available or not allowed.',
     noSensorReadings: 'No motion sensor readings: switched to the on-screen stick.',
+    lobbyTitle: 'Assault lobby',
+    lobbyCount: (players: number, max: number) => `${players} / ${max} players`,
+    lobbyWaiting: (min: number) => `Waiting for at least ${min} players…`,
+    lobbyStarting: (seconds: number) => `Starting in ${seconds} s`,
+    lobbyHint:
+      'Every new player restarts the countdown. Teams are dealt when the round starts: about one gunner for every three attackers.',
+    you: '(you)',
+    mothership: 'Mothership',
+    team: 'Team',
+    hits: 'Hits',
+    attacker: 'Attacker',
+    gunner: 'Gunner',
+    roleAttacker: 'You are an attacker: destroy the mothership',
+    roleGunner: 'You are a gunner: shoot down the attackers before they destroy the mothership',
+    attackersWin: 'The attackers destroyed the mothership!',
+    gunnersWin: 'The mothership held out!',
+    youWon: 'You won',
+    youLost: 'You lost',
+    backToLobby: (seconds: number) => `Back to the lobby in ${seconds}`,
+    gunnerHint: 'Click to aim with the mouse · arrows aim · Space fire · Tab scores',
+    gunnerTouchHint: 'Stick or tilt to aim the turret · FIRE',
   },
 }
 

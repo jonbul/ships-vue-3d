@@ -222,6 +222,12 @@ const eu: Messages = {
     loadFailed: 'Ezin izan dira ontziak kargatu.',
     noSensors:
       'Mugimendu-sentsoreak ez daude eskuragarri edo ez dute baimenik: pantailako joysticka erabiltzen da.',
+    mode: 'Joko-modua',
+    freeForAll: 'Denak denen aurka',
+    freeForAllText: 'Bakoitza bere kabuz; sartu nahi duzunean.',
+    assault: 'Erasoa',
+    assaultText:
+      'Bi talde ama-ontzi baten inguruan: erasotzaileak haren aurka doaz, eta artillariek bere dorreetatik defendatzen dute. 4 eta 20 jokalari arteko gelak.',
   },
 
   game: {
@@ -256,6 +262,28 @@ const eu: Messages = {
     noSensors: 'Mugimendu-sentsoreak ez daude eskuragarri edo ez dute baimenik.',
     noSensorReadings:
       'Mugimendu-sentsoreek ez dute erantzuten: pantailako joysticka erabiltzen da.',
+    lobbyTitle: 'Erasoaren itxarongela',
+    lobbyCount: (players: number, max: number) => `${players} / ${max} jokalari`,
+    lobbyWaiting: (min: number) => `Gutxienez ${min} jokalari egon arte itxaroten…`,
+    lobbyStarting: (seconds: number) => `${seconds} s barru hasiko da`,
+    lobbyHint:
+      'Sartzen den jokalari bakoitzak atzerako kontaketa berrabiarazten du. Taldeak hastean banatzen dira: gutxi gorabehera artillari bat hiru erasotzaileko.',
+    you: '(zu)',
+    mothership: 'Ama-ontzia',
+    team: 'Taldea',
+    hits: 'Inpaktuak',
+    attacker: 'Erasotzailea',
+    gunner: 'Artillaria',
+    roleAttacker: 'Erasotzailea zara: suntsitu ama-ontzia',
+    roleGunner: 'Artillaria zara: bota erasotzaileak ama-ontzia suntsitu baino lehen',
+    attackersWin: 'Erasotzaileek ama-ontzia suntsitu dute!',
+    gunnersWin: 'Ama-ontziak eutsi egin dio!',
+    youWon: 'Irabazi duzu',
+    youLost: 'Galdu duzu',
+    backToLobby: (seconds: number) => `${seconds} barru itxarongelara`,
+    gunnerHint:
+      'Egin klik saguarekin zuzentzeko · geziak zuzendu · Zuriunea tiro · Tab markagailua',
+    gunnerTouchHint: 'Joysticka edo okertu dorrea zuzentzeko · SU',
   },
 }
 
