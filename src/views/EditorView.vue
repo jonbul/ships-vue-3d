@@ -9,9 +9,11 @@ import { History } from '@/editor/history'
 import { t } from '@/i18n'
 import {
   LIMITS,
+  PART_TEXTURES,
   PART_TYPES,
   boundingRadius,
   cloneLayers,
+  isValidTextureUrl,
   clonePart,
   countParts,
   newLayer,
@@ -20,9 +22,11 @@ import {
   validateProject,
   type Layer,
   type Part,
+  type PartTexture,
   type PartType,
   type Project,
 } from '@/shared/shipModel'
+import { onUrlTextureLoaded, textureSwatch, urlTextureState } from '@/shared/textures'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,6 +40,8 @@ const activeLayer = ref(0)
 const mode = ref<GizmoMode>('translate')
 const snap = ref(true)
 const currentColor = ref('#9aa7b8')
+const currentTexture = ref<PartTexture | undefined>()
+const currentTextureUrl = ref<string | undefined>()
 const loading = ref(true)
 const saving = ref(false)
 
@@ -74,6 +80,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  stopUrlTextureListener()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('beforeunload', onBeforeUnload)
   editor?.destroy()
@@ -171,7 +178,10 @@ function addPart(type: PartType) {
   const layer = currentLayer.value
   if (!layer) return
   layer.visible = true
-  layer.parts.push(newPart(type, currentColor.value))
+  const part = newPart(type, currentColor.value)
+  if (currentTexture.value) part.texture = currentTexture.value
+  if (currentTextureUrl.value) part.textureUrl = currentTextureUrl.value
+  layer.parts.push(part)
   refresh()
   selectPart({ layer: activeLayer.value, part: layer.parts.length - 1 })
   commit()
@@ -250,6 +260,56 @@ function setColor(color: string) {
   refresh()
   commit()
 }
+
+/** undefined makes the part plain. */
+function setTexture(texture: PartTexture | undefined) {
+  const part = selectedPart.value
+  currentTexture.value = texture
+  currentTextureUrl.value = undefined
+  if (!part) return
+  // Deleted rather than set to undefined, so the saved part has no key.
+  if (texture) part.texture = texture
+  else delete part.texture
+  delete part.textureUrl
+  refresh()
+  commit()
+}
+
+/** An image link as the texture; empty makes the part plain. */
+function setTextureUrl(event: Event) {
+  const input = event.target as HTMLInputElement
+  const part = selectedPart.value
+  const url = input.value.trim()
+  if (!part) return
+  if (url && !isValidTextureUrl(url)) {
+    showAlert('error', t.value.editor.imageLinkRule(LIMITS.textureUrl))
+    input.value = part.textureUrl ?? ''
+    return
+  }
+  currentTexture.value = undefined
+  currentTextureUrl.value = url || undefined
+  delete part.texture
+  if (url) part.textureUrl = url
+  else delete part.textureUrl
+  refresh()
+  commit()
+}
+
+// Bumped when an image texture loads or fails, so its status below updates.
+const urlTexturesSettled = ref(0)
+const stopUrlTextureListener = onUrlTextureLoaded(() => urlTexturesSettled.value++)
+const selectedUrlState = computed(() => {
+  const url = selectedPart.value?.textureUrl
+  return url && urlTexturesSettled.value >= 0 ? urlTextureState(url) : null
+})
+
+/** A CSS url() for an image link, quoted so any character in it is safe. */
+const cssUrl = (url: string) => `url(${JSON.stringify(url)})`
+
+// Drawn once, the first time the editor opens.
+const textureSwatches = computed(() =>
+  Object.fromEntries(PART_TEXTURES.map((texture) => [texture, textureSwatch(texture)])),
+)
 
 function setType(type: PartType) {
   if (!selectedPart.value) return
@@ -490,7 +550,17 @@ function onKeyDown(event: KeyboardEvent) {
             :class="{ active: selected?.layer === activeLayer && selected?.part === i }"
             @click="selectPart({ layer: activeLayer, part: i })"
           >
-            <span class="swatch" :style="{ background: part.color }" />
+            <span
+              class="swatch"
+              :style="{
+                backgroundColor: part.color,
+                backgroundImage: part.textureUrl
+                  ? cssUrl(part.textureUrl)
+                  : part.texture
+                    ? `url(${textureSwatches[part.texture]})`
+                    : 'none',
+              }"
+            />
             {{ t.ship.parts[part.type] }} {{ i + 1 }}
             <span v-if="part.mirror" class="muted" :title="t.editor.mirrored">⇋</span>
           </li>
@@ -565,6 +635,50 @@ function onKeyDown(event: KeyboardEvent) {
             @click="setColor(color)"
           />
         </div>
+
+        <div class="row">{{ t.editor.texture }}</div>
+        <div class="textures">
+          <button
+            type="button"
+            class="texture-button"
+            :class="{ active: !selectedPart.texture && !selectedPart.textureUrl }"
+            :style="{ backgroundColor: selectedPart.color }"
+            :title="t.editor.plainTexture"
+            :aria-label="t.editor.plainTexture"
+            @click="setTexture(undefined)"
+          />
+          <button
+            v-for="texture in PART_TEXTURES"
+            :key="texture"
+            type="button"
+            class="texture-button"
+            :class="{ active: selectedPart.texture === texture }"
+            :style="{
+              backgroundColor: selectedPart.color,
+              backgroundImage: `url(${textureSwatches[texture]})`,
+            }"
+            :title="t.ship.textures[texture]"
+            :aria-label="t.ship.textures[texture]"
+            @click="setTexture(texture)"
+          />
+        </div>
+        <label class="row">
+          {{ t.editor.imageLink }}
+          <input
+            type="url"
+            class="texture-url"
+            placeholder="https://…"
+            :maxlength="LIMITS.textureUrl"
+            :value="selectedPart.textureUrl ?? ''"
+            @change="setTextureUrl"
+          />
+        </label>
+        <p v-if="selectedUrlState === 'failed'" class="muted hint">
+          {{ t.editor.imageFailed }}
+        </p>
+        <p v-else-if="selectedPart.textureUrl" class="muted hint">
+          {{ t.editor.imageHint }}
+        </p>
 
         <label class="row check">
           <input
@@ -769,6 +883,36 @@ button.icon {
   height: 1.5rem;
   padding: 0;
   border-radius: 4px;
+}
+.textures {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+/* The textures are light greys; multiplying them with the part's color
+   previews them as they look on the part. */
+.texture-button,
+.swatch {
+  background-size: cover;
+  background-blend-mode: multiply;
+}
+.texture-button {
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+}
+.texture-url {
+  flex: 1;
+  min-width: 0;
+}
+.hint {
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+}
+.texture-button.active {
+  border-color: var(--accent);
 }
 .actions {
   display: flex;

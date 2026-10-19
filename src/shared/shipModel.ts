@@ -23,6 +23,22 @@ export const PART_TYPES = [
 ] as const
 export type PartType = (typeof PART_TYPES)[number]
 
+/**
+ * Built-in surface textures. A part without one is plain. The texture is
+ * tinted by the part's color.
+ */
+export const PART_TEXTURES = [
+  'panels',
+  'grid',
+  'stripes',
+  'carbon',
+  'hexagons',
+  'worn',
+  'camo',
+  'windows',
+] as const
+export type PartTexture = (typeof PART_TEXTURES)[number]
+
 export type Vec3 = [number, number, number]
 
 export interface Part {
@@ -31,6 +47,13 @@ export interface Part {
   rotation: Vec3
   scale: Vec3
   color: string
+  /** Left out for a plain part (and in ships saved before textures). */
+  texture?: PartTexture
+  /**
+   * An https image to use as the texture instead of a built-in one (never
+   * both). Tinted by the color like the built-in textures.
+   */
+  textureUrl?: string
   /** Also render the part reflected across the X=0 plane. */
   mirror: boolean
 }
@@ -58,6 +81,7 @@ export const LIMITS = {
   coordinate: 50,
   minScale: 0.01,
   maxScale: 50,
+  textureUrl: 500,
 } as const
 
 export function newPart(type: PartType, color = '#9aa7b8'): Part {
@@ -98,6 +122,25 @@ export function countParts(layers: Layer[]): number {
 
 const COLOR = /^#[0-9a-fA-F]{6}$/
 
+/**
+ * Whether a texture URL is one the server accepts: https, with a host, no
+ * spaces or control characters, at most LIMITS.textureUrl characters. Same
+ * rules as ships-go-3d's validTextureURL.
+ */
+export function isValidTextureUrl(url: string): boolean {
+  if ([...url].length > LIMITS.textureUrl || /\s/.test(url)) return false
+  for (const char of url) {
+    const code = char.charCodeAt(0)
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return false
+  }
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' && parsed.hostname !== '' && url.startsWith('https://')
+  } catch {
+    return false
+  }
+}
+
 /** Problems the server would reject the project for; empty when valid. */
 export function validateProject(project: Project): string[] {
   const text = t.value.ship
@@ -127,6 +170,13 @@ function partProblem(part: Part): string | null {
   const text = t.value.ship
   if (!PART_TYPES.includes(part.type)) return text.unknownType(part.type)
   if (!COLOR.test(part.color)) return text.invalidColor(part.color)
+  if (part.texture !== undefined && !PART_TEXTURES.includes(part.texture)) {
+    return text.unknownTexture(part.texture)
+  }
+  if (part.textureUrl !== undefined) {
+    if (part.texture !== undefined) return text.textureAndImage
+    if (!isValidTextureUrl(part.textureUrl)) return text.imageLinkRule(LIMITS.textureUrl)
+  }
   for (let axis = 0; axis < 3; axis++) {
     const position = part.position[axis]!
     const scale = part.scale[axis]!

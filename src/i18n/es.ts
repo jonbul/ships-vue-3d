@@ -126,6 +126,15 @@ const es: Messages = {
     rotation: 'Rotación °',
     size: 'Tamaño',
     color: 'Color',
+    texture: 'Textura',
+    plainTexture: 'Lisa',
+    imageLink: 'Enlace de imagen',
+    imageFailed:
+      'No se ha podido cargar la imagen. Puede que el sitio no permita a otros sitios usar sus imágenes; la pieza se muestra lisa.',
+    imageHint:
+      'La imagen se repite en mosaico y se tiñe con el color: elige blanco para ver sus propios colores.',
+    imageLinkRule: (max: number) =>
+      `Los enlaces de imagen deben empezar por https:// y tener como máximo ${max} caracteres.`,
     mirror: 'Simetría izquierda/derecha',
     duplicate: 'Duplicar',
     delete: 'Eliminar',
@@ -164,6 +173,16 @@ const es: Messages = {
       prism: 'Prisma hexagonal',
       frustum: 'Cilindro cónico',
     },
+    textures: {
+      panels: 'Paneles de casco',
+      grid: 'Baldosas',
+      stripes: 'Franjas de peligro',
+      carbon: 'Fibra de carbono',
+      hexagons: 'Panal',
+      worn: 'Metal gastado',
+      camo: 'Camuflaje',
+      windows: 'Ventanas',
+    },
     needsName: 'La nave necesita un nombre.',
     nameTooLong: (max: number) => `El nombre no puede tener más de ${max} caracteres.`,
     needsLayer: 'La nave necesita al menos una capa.',
@@ -174,6 +193,10 @@ const es: Messages = {
     layerProblem: (layer: string, problem: string) => `Capa «${layer}»: ${problem}`,
     unknownType: (type: string) => `tipo de pieza desconocido «${type}».`,
     invalidColor: (color: string) => `color no válido «${color}».`,
+    unknownTexture: (texture: string) => `textura desconocida «${texture}».`,
+    textureAndImage: 'una pieza puede tener una textura o una imagen, no las dos.',
+    imageLinkRule: (max: number) =>
+      `los enlaces de imagen deben empezar por https:// y tener como máximo ${max} caracteres.`,
     positionRange: (max: number) => `las posiciones deben estar entre -${max} y ${max}.`,
     invalidRotation: 'rotación no válida.',
     sizeRange: (min: number, max: number) => `los tamaños deben estar entre ${min} y ${max}.`,

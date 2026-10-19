@@ -1,4 +1,4 @@
-import type { PartType } from '@/shared/shipModel'
+import type { PartTexture, PartType } from '@/shared/shipModel'
 
 // The English text, which also defines the shape every other language must
 // match. A sentence with a link in it is split into the text before and after
@@ -127,6 +127,14 @@ const en = {
     rotation: 'Rotation °',
     size: 'Size',
     color: 'Color',
+    texture: 'Texture',
+    plainTexture: 'Plain',
+    imageLink: 'Image link',
+    imageFailed:
+      "The image couldn't be loaded. The site may not allow other sites to use its images; the part shows as plain.",
+    imageHint: 'The image is tiled and tinted by the color: pick white to show its own colors.',
+    imageLinkRule: (max: number) =>
+      `Image links must start with https:// and be at most ${max} characters.`,
     mirror: 'Mirror left/right',
     duplicate: 'Duplicate',
     delete: 'Delete',
@@ -165,6 +173,16 @@ const en = {
       prism: 'Hex prism',
       frustum: 'Tapered cylinder',
     } as Record<PartType, string>,
+    textures: {
+      panels: 'Hull panels',
+      grid: 'Tiles',
+      stripes: 'Hazard stripes',
+      carbon: 'Carbon fibre',
+      hexagons: 'Honeycomb',
+      worn: 'Worn metal',
+      camo: 'Camouflage',
+      windows: 'Windows',
+    } as Record<PartTexture, string>,
     needsName: 'The ship needs a name.',
     nameTooLong: (max: number) => `The name can't be longer than ${max} characters.`,
     needsLayer: 'The ship needs at least one layer.',
@@ -174,6 +192,10 @@ const en = {
     layerProblem: (layer: string, problem: string) => `Layer "${layer}": ${problem}`,
     unknownType: (type: string) => `unknown part type "${type}".`,
     invalidColor: (color: string) => `invalid color "${color}".`,
+    unknownTexture: (texture: string) => `unknown texture "${texture}".`,
+    textureAndImage: 'a part can have a texture or an image, not both.',
+    imageLinkRule: (max: number) =>
+      `image links must start with https:// and be at most ${max} characters.`,
     positionRange: (max: number) => `positions must be between -${max} and ${max}.`,
     invalidRotation: 'invalid rotation.',
     sizeRange: (min: number, max: number) => `sizes must be between ${min} and ${max}.`,

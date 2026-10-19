@@ -126,6 +126,15 @@ const eu: Messages = {
     rotation: 'Biraketa °',
     size: 'Tamaina',
     color: 'Kolorea',
+    texture: 'Testura',
+    plainTexture: 'Lisoa',
+    imageLink: 'Irudi-esteka',
+    imageFailed:
+      'Ezin izan da irudia kargatu. Baliteke guneak beste guneei bere irudiak erabiltzen ez uztea; pieza lisoa ikusten da.',
+    imageHint:
+      'Irudia mosaikoan errepikatzen da eta kolorearekin tindatzen da: aukeratu zuria bere koloreak ikusteko.',
+    imageLinkRule: (max: number) =>
+      `Irudi-estekek https:// honekin hasi behar dute eta gehienez ${max} karaktere izan.`,
     mirror: 'Ezker-eskuin simetria',
     duplicate: 'Bikoiztu',
     delete: 'Ezabatu',
@@ -164,6 +173,16 @@ const eu: Messages = {
       prism: 'Prisma hexagonala',
       frustum: 'Zilindro konikoa',
     },
+    textures: {
+      panels: 'Kasko-panelak',
+      grid: 'Lauzak',
+      stripes: 'Arrisku-marrak',
+      carbon: 'Karbono-zuntza',
+      hexagons: 'Abaraska',
+      worn: 'Metal higatua',
+      camo: 'Kamuflajea',
+      windows: 'Leihoak',
+    },
     needsName: 'Ontziak izen bat behar du.',
     nameTooLong: (max: number) => `Izenak ezin ditu ${max} karaktere baino gehiago izan.`,
     needsLayer: 'Ontziak geruza bat behar du gutxienez.',
@@ -174,6 +193,10 @@ const eu: Messages = {
     layerProblem: (layer: string, problem: string) => `«${layer}» geruza: ${problem}`,
     unknownType: (type: string) => `pieza mota ezezaguna: «${type}».`,
     invalidColor: (color: string) => `kolore baliogabea: «${color}».`,
+    unknownTexture: (texture: string) => `testura ezezaguna: «${texture}».`,
+    textureAndImage: 'pieza batek testura bat edo irudi bat izan dezake, ez biak.',
+    imageLinkRule: (max: number) =>
+      `irudi-estekek https:// honekin hasi behar dute eta gehienez ${max} karaktere izan.`,
     positionRange: (max: number) => `posizioek -${max} eta ${max} artean egon behar dute.`,
     invalidRotation: 'biraketa baliogabea.',
     sizeRange: (min: number, max: number) => `tamainek ${min} eta ${max} artean egon behar dute.`,

@@ -1,4 +1,5 @@
 import {
+  BufferAttribute,
   BufferGeometry,
   Color,
   DirectionalLight,
@@ -57,7 +58,9 @@ export class World {
       this.dustPositions[i] = (Math.random() - 0.5) * DUST_BOX
     }
     const dustGeometry = this.track(new BufferGeometry())
-    dustGeometry.setAttribute('position', new Float32BufferAttribute(this.dustPositions, 3))
+    // A plain BufferAttribute uses this array as is, so wrapping the specks in
+    // update() moves what's drawn; Float32BufferAttribute would copy it.
+    dustGeometry.setAttribute('position', new BufferAttribute(this.dustPositions, 3))
     this.dust = new Points(
       dustGeometry,
       this.track(

@@ -24,6 +24,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
 
 import { applyPartTransform, createPartMesh } from '@/shared/shipMesh'
+import { onUrlTextureLoaded } from '@/shared/textures'
 import { LIMITS, type Layer, type Vec3 } from '@/shared/shipModel'
 
 /**
@@ -80,6 +81,7 @@ export class Editor {
   private meshes: PartMeshes[] = []
   private selected: PartRef | null = null
   private renderQueued = false
+  private readonly stopTextureListener: () => void
   private pointerDown: Vector2 | null = null
   private gizmoUsed = false
   private destroyed = false
@@ -128,6 +130,7 @@ export class Editor {
     this.gizmo = new TransformControls(this.camera, this.renderer.domElement)
     this.gizmo.setSpace('local')
     this.gizmo.addEventListener('change', this.requestRender)
+    this.stopTextureListener = onUrlTextureLoaded(this.requestRender)
     this.gizmo.addEventListener('dragging-changed', (event) => {
       this.orbit.enabled = !event.value
       if (event.value) this.gizmoUsed = true
@@ -213,6 +216,7 @@ export class Editor {
   destroy(): void {
     this.destroyed = true
     this.resizeObserver.disconnect()
+    this.stopTextureListener()
     const canvas = this.renderer.domElement
     canvas.removeEventListener('pointerdown', this.onPointerDown)
     canvas.removeEventListener('pointerup', this.onPointerUp)
