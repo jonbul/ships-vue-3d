@@ -152,7 +152,11 @@ const COLOR = /^#[0-9a-fA-F]{6}$/
  * rules as ships-go-3d's validTextureURL.
  */
 export function isValidTextureUrl(url: string): boolean {
-  if ([...url].length > LIMITS.textureUrl || /[\s\x00-\x1f\x7f]/.test(url)) return false
+  if ([...url].length > LIMITS.textureUrl || /\s/.test(url)) return false
+  for (const char of url) {
+    const code = char.charCodeAt(0)
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return false
+  }
   try {
     const parsed = new URL(url)
     return parsed.protocol === 'https:' && parsed.hostname !== '' && url.startsWith('https://')
