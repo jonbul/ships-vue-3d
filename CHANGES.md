@@ -1,5 +1,22 @@
 CHANGES
 =======
+Version 0.4.0 - 2026-10-19
+------------------
+Textures for ship parts in the designer.
+
+- Each part can have one of eight built-in textures: hull panels, tiles,
+  hazard stripes, carbon fibre, honeycomb, worn metal, camouflage and
+  windows, picked from a row of previews under the part's color. "Plain"
+  (the first one) is the old untextured look, and ships saved before keep it.
+- The texture is tinted by the part's color, so color works as before.
+- A new part gets the last texture picked, like it gets the last color.
+- Textures are projected along each face, so they keep the same size on
+  every shape however much a part is stretched, and show in thumbnails and
+  in game too. They are drawn in the browser, so nothing extra is
+  downloaded.
+
+Needs ships-go-3d 0.4.0, which saves the texture with the ship.
+
 Version 0.3.0 - 2026-10-18
 ------------------
 Six new shapes in the ship designer, for more detailed ships.

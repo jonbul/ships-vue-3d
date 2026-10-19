@@ -3,11 +3,13 @@ import { Euler, Matrix4, Vector3 } from 'three'
 
 import {
   LIMITS,
+  PART_TEXTURES,
   boundingRadius,
   mirroredTransform,
   newPart,
   newProject,
   validateProject,
+  type PartTexture,
   type Project,
 } from './shipModel'
 
@@ -23,12 +25,19 @@ describe('validateProject', () => {
     expect(validateProject(project())).toEqual([])
   })
 
+  it.each(PART_TEXTURES)('accepts the %s texture', (texture) => {
+    const p = project()
+    p.layers[0]!.parts[0]!.texture = texture
+    expect(validateProject(p)).toEqual([])
+  })
+
   it.each([
     ['no name', (p: Project) => (p.name = '  ')],
     ['bad color', (p: Project) => (p.layers[0]!.parts[0]!.color = 'red')],
     ['far position', (p: Project) => (p.layers[0]!.parts[0]!.position[0] = LIMITS.coordinate + 1)],
     ['zero scale', (p: Project) => (p.layers[0]!.parts[0]!.scale[1] = 0)],
     ['no layers', (p: Project) => (p.layers = [])],
+    ['unknown texture', (p: Project) => (p.layers[0]!.parts[0]!.texture = 'marble' as PartTexture)],
   ])('rejects %s', (_, mutate) => {
     const p = project()
     mutate(p)

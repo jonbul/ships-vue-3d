@@ -9,7 +9,9 @@ import { History } from '@/editor/history'
 import {
   LIMITS,
   PART_LABELS,
+  PART_TEXTURES,
   PART_TYPES,
+  TEXTURE_LABELS,
   boundingRadius,
   cloneLayers,
   clonePart,
@@ -20,9 +22,11 @@ import {
   validateProject,
   type Layer,
   type Part,
+  type PartTexture,
   type PartType,
   type Project,
 } from '@/shared/shipModel'
+import { textureSwatch } from '@/shared/textures'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,6 +40,7 @@ const activeLayer = ref(0)
 const mode = ref<GizmoMode>('translate')
 const snap = ref(true)
 const currentColor = ref('#9aa7b8')
+const currentTexture = ref<PartTexture | undefined>()
 const loading = ref(true)
 const saving = ref(false)
 
@@ -171,7 +176,9 @@ function addPart(type: PartType) {
   const layer = currentLayer.value
   if (!layer) return
   layer.visible = true
-  layer.parts.push(newPart(type, currentColor.value))
+  const part = newPart(type, currentColor.value)
+  if (currentTexture.value) part.texture = currentTexture.value
+  layer.parts.push(part)
   refresh()
   selectPart({ layer: activeLayer.value, part: layer.parts.length - 1 })
   commit()
@@ -250,6 +257,23 @@ function setColor(color: string) {
   refresh()
   commit()
 }
+
+/** undefined makes the part plain. */
+function setTexture(texture: PartTexture | undefined) {
+  const part = selectedPart.value
+  currentTexture.value = texture
+  if (!part) return
+  // Deleted rather than set to undefined, so the saved part has no key.
+  if (texture) part.texture = texture
+  else delete part.texture
+  refresh()
+  commit()
+}
+
+// Drawn once, the first time the editor opens.
+const textureSwatches = computed(() =>
+  Object.fromEntries(PART_TEXTURES.map((texture) => [texture, textureSwatch(texture)])),
+)
 
 function setType(type: PartType) {
   if (!selectedPart.value) return
@@ -490,7 +514,13 @@ function onKeyDown(event: KeyboardEvent) {
             :class="{ active: selected?.layer === activeLayer && selected?.part === i }"
             @click="selectPart({ layer: activeLayer, part: i })"
           >
-            <span class="swatch" :style="{ background: part.color }" />
+            <span
+              class="swatch"
+              :style="{
+                backgroundColor: part.color,
+                backgroundImage: part.texture ? `url(${textureSwatches[part.texture]})` : 'none',
+              }"
+            />
             {{ PART_LABELS[part.type] }} {{ i + 1 }}
             <span v-if="part.mirror" class="muted" title="Mirrored">⇋</span>
           </li>
@@ -563,6 +593,33 @@ function onKeyDown(event: KeyboardEvent) {
             :style="{ background: color }"
             :title="color"
             @click="setColor(color)"
+          />
+        </div>
+
+        <div class="row">Texture</div>
+        <div class="textures">
+          <button
+            type="button"
+            class="texture-button"
+            :class="{ active: !selectedPart.texture }"
+            :style="{ backgroundColor: selectedPart.color }"
+            title="Plain"
+            aria-label="Plain"
+            @click="setTexture(undefined)"
+          />
+          <button
+            v-for="texture in PART_TEXTURES"
+            :key="texture"
+            type="button"
+            class="texture-button"
+            :class="{ active: selectedPart.texture === texture }"
+            :style="{
+              backgroundColor: selectedPart.color,
+              backgroundImage: `url(${textureSwatches[texture]})`,
+            }"
+            :title="TEXTURE_LABELS[texture]"
+            :aria-label="TEXTURE_LABELS[texture]"
+            @click="setTexture(texture)"
           />
         </div>
 
@@ -776,6 +833,28 @@ button.icon {
   height: 1.5rem;
   padding: 0;
   border-radius: 4px;
+}
+.textures {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+/* The textures are light greys; multiplying them with the part's color
+   previews them as they look on the part. */
+.texture-button,
+.swatch {
+  background-size: cover;
+  background-blend-mode: multiply;
+}
+.texture-button {
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+}
+.texture-button.active {
+  border-color: var(--accent);
 }
 .actions {
   display: flex;

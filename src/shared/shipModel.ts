@@ -21,6 +21,33 @@ export const PART_TYPES = [
 ] as const
 export type PartType = (typeof PART_TYPES)[number]
 
+/**
+ * Built-in surface textures. A part without one is plain. The texture is
+ * tinted by the part's color.
+ */
+export const PART_TEXTURES = [
+  'panels',
+  'grid',
+  'stripes',
+  'carbon',
+  'hexagons',
+  'worn',
+  'camo',
+  'windows',
+] as const
+export type PartTexture = (typeof PART_TEXTURES)[number]
+
+export const TEXTURE_LABELS: Record<PartTexture, string> = {
+  panels: 'Hull panels',
+  grid: 'Tiles',
+  stripes: 'Hazard stripes',
+  carbon: 'Carbon fibre',
+  hexagons: 'Honeycomb',
+  worn: 'Worn metal',
+  camo: 'Camouflage',
+  windows: 'Windows',
+}
+
 export type Vec3 = [number, number, number]
 
 export interface Part {
@@ -29,6 +56,8 @@ export interface Part {
   rotation: Vec3
   scale: Vec3
   color: string
+  /** Left out for a plain part (and in ships saved before textures). */
+  texture?: PartTexture
   /** Also render the part reflected across the X=0 plane. */
   mirror: boolean
 }
@@ -144,6 +173,9 @@ export function validateProject(project: Project): string[] {
 function partProblem(part: Part): string | null {
   if (!PART_TYPES.includes(part.type)) return `unknown part type "${part.type}".`
   if (!COLOR.test(part.color)) return `invalid color "${part.color}".`
+  if (part.texture !== undefined && !PART_TEXTURES.includes(part.texture)) {
+    return `unknown texture "${part.texture}".`
+  }
   for (let axis = 0; axis < 3; axis++) {
     const position = part.position[axis]!
     const scale = part.scale[axis]!
