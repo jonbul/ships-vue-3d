@@ -39,7 +39,8 @@ dev server must be HTTPS because the session cookie is `Secure`.
 
 - Ships face **+Z** with **+Y up**. Every part is modelled in a unit cube,
   which is what lets client and server compute the same bounding radius.
-- Part geometries/materials are shared caches (`shipMesh.ts`): never dispose
-  them.
+  Imported `.glb` models are fitted into it too (`models.ts`).
+- Part geometries/materials are shared caches (`shipMesh.ts`, and
+  `models.ts` for imported models): never dispose them.
 - Player names come from strangers: render them as text only (Vue
   interpolation, `textContent`), never `innerHTML`.

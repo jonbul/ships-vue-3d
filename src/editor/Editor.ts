@@ -9,7 +9,7 @@ import {
   HemisphereLight,
   LineBasicMaterial,
   LineSegments,
-  Mesh,
+  type Object3D,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -24,6 +24,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
 
 import { applyPartTransform, createPartMesh } from '@/shared/shipMesh'
+import { onModelLoaded } from '@/shared/models'
 import { onUrlTextureLoaded } from '@/shared/textures'
 import { LIMITS, type Layer, type Vec3 } from '@/shared/shipModel'
 
@@ -50,8 +51,8 @@ export interface EditorEvents {
 
 interface PartMeshes {
   ref: PartRef
-  mesh: Mesh
-  mirror: Mesh | null
+  mesh: Object3D
+  mirror: Object3D | null
 }
 
 const SNAP = { translate: 0.25, rotate: MathUtils.degToRad(15), scale: 0.1 }
@@ -82,6 +83,7 @@ export class Editor {
   private selected: PartRef | null = null
   private renderQueued = false
   private readonly stopTextureListener: () => void
+  private readonly stopModelListener: () => void
   private pointerDown: Vector2 | null = null
   private gizmoUsed = false
   private destroyed = false
@@ -131,6 +133,11 @@ export class Editor {
     this.gizmo.setSpace('local')
     this.gizmo.addEventListener('change', this.requestRender)
     this.stopTextureListener = onUrlTextureLoaded(this.requestRender)
+    // A model replacing its placeholder changes the selected part's box.
+    this.stopModelListener = onModelLoaded(() => {
+      this.attachGizmo()
+      this.requestRender()
+    })
     this.gizmo.addEventListener('dragging-changed', (event) => {
       this.orbit.enabled = !event.value
       if (event.value) this.gizmoUsed = true
@@ -217,6 +224,7 @@ export class Editor {
     this.destroyed = true
     this.resizeObserver.disconnect()
     this.stopTextureListener()
+    this.stopModelListener()
     const canvas = this.renderer.domElement
     canvas.removeEventListener('pointerdown', this.onPointerDown)
     canvas.removeEventListener('pointerup', this.onPointerUp)
@@ -287,8 +295,13 @@ export class Editor {
     )
     this.raycaster.setFromCamera(pointer, this.camera)
     const candidates = this.meshes.flatMap((m) => (m.mirror ? [m.mesh, m.mirror] : [m.mesh]))
-    const hit = this.raycaster.intersectObjects(candidates, false)[0]
-    const found = hit && this.meshes.find((m) => m.mesh === hit.object || m.mirror === hit.object)
+    // Recursive: a model is a group of meshes.
+    const hit = this.raycaster.intersectObjects(candidates, true)[0]
+    let found: PartMeshes | undefined
+    for (let object = hit?.object ?? null; object && !found; object = object.parent) {
+      const candidate = object
+      found = this.meshes.find((m) => m.mesh === candidate || m.mirror === candidate)
+    }
     this.select(found ? found.ref : null)
     this.events.onSelect(this.selected)
   }

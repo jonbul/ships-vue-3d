@@ -8,6 +8,7 @@ import {
   LatheGeometry,
   Mesh,
   MeshStandardMaterial,
+  type Object3D,
   SphereGeometry,
   TorusGeometry,
   Vector2,
@@ -19,20 +20,22 @@ import {
   type Layer,
   type Part,
   type PartTexture,
-  type PartType,
+  type ShapeType,
 } from './shipModel'
+import { createModelObject } from './models'
 import { partTexture, urlTexture } from './textures'
 
 // Geometries and materials are shared by every ship on every screen and never
 // disposed: there is one geometry per part type and one material per color
 // and texture, so the set stays small, and sharing them is what lets a game with many
-// ships stay cheap enough for a phone. Never call .dispose() on them.
-const geometries = new Map<PartType, BufferGeometry>()
+// ships stay cheap enough for a phone. Never call .dispose() on them. The
+// same goes for imported models' (models.ts).
+const geometries = new Map<ShapeType, BufferGeometry>()
 const materials = new Map<string, MeshStandardMaterial>()
 
 // Segment counts are kept low on purpose: ships are small on screen and the
 // game has to run on phones.
-function createGeometry(type: PartType): BufferGeometry {
+function createGeometry(type: ShapeType): BufferGeometry {
   switch (type) {
     case 'box':
       return new BoxGeometry(1, 1, 1)
@@ -131,7 +134,7 @@ function createWedgeGeometry(): BufferGeometry {
   return geometry
 }
 
-export function partGeometry(type: PartType): BufferGeometry {
+export function partGeometry(type: ShapeType): BufferGeometry {
   let geometry = geometries.get(type)
   if (!geometry) {
     geometry = createGeometry(type)
@@ -203,21 +206,28 @@ function projectTexture(material: MeshStandardMaterial): void {
   }
 }
 
-/** A mesh for one part, or for its mirror image. */
-export function createPartMesh(part: Part, mirrored = false): Mesh {
-  const mesh = new Mesh(
-    partGeometry(part.type),
-    partMaterial(part.color, part.texture, part.textureUrl),
-  )
-  applyPartTransform(mesh, part, mirrored)
-  return mesh
+/**
+ * The object for one part, or for its mirror image: a mesh, or for an
+ * imported model a group holding it.
+ */
+export function createPartMesh(part: Part, mirrored = false): Object3D {
+  const object =
+    part.type === 'model'
+      ? createModelObject(part.modelId ?? '')
+      : new Mesh(partGeometry(part.type), partMaterial(part.color, part.texture, part.textureUrl))
+  applyPartTransform(object, part, mirrored)
+  return object
 }
 
-export function applyPartTransform(mesh: Mesh, part: Part, mirrored = false): void {
+export function applyPartTransform(object: Object3D, part: Part, mirrored = false): void {
   const { position, rotation } = mirrored ? mirroredTransform(part) : part
-  mesh.position.set(...position)
-  mesh.rotation.set(...rotation)
-  mesh.scale.set(...part.scale)
+  object.position.set(...position)
+  object.rotation.set(...rotation)
+  object.scale.set(...part.scale)
+  // A model isn't symmetric like the shapes: its mirror image is a true
+  // reflection. three.js turns the faces back the right way round itself
+  // when an object is scaled negatively.
+  if (mirrored && part.type === 'model') object.scale.x = -object.scale.x
 }
 
 /**

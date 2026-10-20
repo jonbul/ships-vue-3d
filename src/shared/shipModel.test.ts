@@ -31,6 +31,28 @@ describe('validateProject', () => {
     expect(validateProject(p)).toEqual([])
   })
 
+  it('accepts an imported model', () => {
+    const p = project()
+    p.layers[0]!.parts[0] = { ...newPart('model'), modelId: '0123456789abcdef01234567' }
+    expect(validateProject(p)).toEqual([])
+  })
+
+  it.each([
+    ['without a model', {}],
+    ['with a bad model id', { modelId: 'nope' }],
+    ['with a texture', { modelId: '0123456789abcdef01234567', texture: 'panels' as const }],
+  ])('rejects a model part %s', (_, fields) => {
+    const p = project()
+    p.layers[0]!.parts[0] = { ...newPart('model'), ...fields }
+    expect(validateProject(p)).toHaveLength(1)
+  })
+
+  it('rejects a model on a shape', () => {
+    const p = project()
+    p.layers[0]!.parts[0]!.modelId = '0123456789abcdef01234567'
+    expect(validateProject(p)).toHaveLength(1)
+  })
+
   it.each(PART_TEXTURES)('accepts the %s texture', (texture) => {
     const p = project()
     p.layers[0]!.parts[0]!.texture = texture

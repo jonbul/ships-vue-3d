@@ -1,5 +1,25 @@
 CHANGES
 =======
+Version 0.8.0 - 2026-10-20
+------------------
+Import 3D models into a ship. Needs ships-go-3d 0.8.0.
+
+- "Import 3D model (.glb)" in the designer's Add part section adds a .glb
+  file as a part. It moves, rotates, sizes, mirrors, duplicates and undoes
+  like any other part, is saved with the ship, and shows in the thumbnails
+  and in game for every player.
+- The model is fitted into the part along its longest side, keeping its
+  proportions, and keeps its own colors, materials and textures (so the
+  part has no color or texture to pick). It starts at size 4.
+- Mirroring a model makes a true mirror image, since a model needn't be
+  symmetric like the built-in shapes.
+- Files must be .glb with everything embedded, at most 4 MB and 100,000
+  triangles, and without Draco or meshopt compression. The file is checked
+  before it is uploaded; importing the same file again reuses it.
+- Until a model has loaded, or if it can't be, the part shows as a box
+  outline.
+- In English, Spanish and Basque.
+
 Version 0.6.0 - 2026-10-19
 ------------------
 A new game mode: the assault. Pick it, or the free for all as before, at the

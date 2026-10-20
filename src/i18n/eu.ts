@@ -135,6 +135,16 @@ const eu: Messages = {
       'Irudia mosaikoan errepikatzen da eta kolorearekin tindatzen da: aukeratu zuria bere koloreak ikusteko.',
     imageLinkRule: (max: number) =>
       `Irudi-estekek https:// honekin hasi behar dute eta gehienez ${max} karaktere izan.`,
+    importModel: 'Inportatu 3D eredua (.glb)',
+    importingModel: 'Inportatzen…',
+    importModelFailed: 'Ezin izan da eredua inportatu.',
+    modelTooLarge: (max: number) => `Ereduak ezin ditu ${max} MB baino gehiago izan.`,
+    modelUnreadable:
+      'Ezin izan da fitxategia 3D eredu gisa irakurri. Esportatu .glb gisa, dena barruan duela eta Draco edo meshopt konpresiorik gabe.',
+    model: '3D eredua',
+    modelHint:
+      'Eredua piezara egokitzen da bere alderik luzeenetik, eta bere kolore eta materialak gordetzen ditu.',
+    modelFailed: 'Ezin izan da eredua kargatu; pieza kutxa baten ingerada gisa ikusten da.',
     mirror: 'Ezker-eskuin simetria',
     duplicate: 'Bikoiztu',
     delete: 'Ezabatu',
@@ -172,6 +182,7 @@ const eu: Messages = {
       tube: 'Hodia',
       prism: 'Prisma hexagonala',
       frustum: 'Zilindro konikoa',
+      model: '3D eredua',
     },
     textures: {
       panels: 'Kasko-panelak',
@@ -197,6 +208,10 @@ const eu: Messages = {
     textureAndImage: 'pieza batek testura bat edo irudi bat izan dezake, ez biak.',
     imageLinkRule: (max: number) =>
       `irudi-estekek https:// honekin hasi behar dute eta gehienez ${max} karaktere izan.`,
+    invalidModelId: '3D eredu pieza batek baliozko eredu bat behar du.',
+    modelNoTexture:
+      '3D eredu batek bere itxura gordetzen du eta ezin du testurarik edo irudirik izan.',
+    modelIdOnShape: '3D eredu piezek bakarrik izan dezakete eredu bat.',
     positionRange: (max: number) => `posizioek -${max} eta ${max} artean egon behar dute.`,
     invalidRotation: 'biraketa baliogabea.',
     sizeRange: (min: number, max: number) => `tamainek ${min} eta ${max} artean egon behar dute.`,

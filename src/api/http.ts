@@ -3,9 +3,12 @@ import { locale, t } from '@/i18n'
 // ships-go-3d runs on the same host as this page (so it also works when the
 // site is opened from another device on the LAN), on port VITE_API_PORT
 // (default 3000, the same as the 2D backend). VITE_API_URL overrides both.
+// Tests have no page, so no location: there it is empty.
 export const API_URL =
   import.meta.env.VITE_API_URL ??
-  `${location.protocol}//${location.hostname}:${import.meta.env.VITE_API_PORT ?? '3000'}`
+  (typeof location === 'undefined'
+    ? ''
+    : `${location.protocol}//${location.hostname}:${import.meta.env.VITE_API_PORT ?? '3000'}`)
 
 export const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws'
 
@@ -40,10 +43,14 @@ function unreachable(): ApiError {
   })
 }
 
+/** A body is sent as JSON, except a Blob (such as a File), which is sent as is. */
 export async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
+  const { body } = options
+  const blob = body instanceof Blob ? body : null
+  const contentType = blob ? blob.type || 'application/octet-stream' : 'application/json'
   let response: Response
   try {
     response = await fetch(API_URL + path, {
@@ -52,9 +59,9 @@ export async function request<T>(
       // The server answers errors in this language.
       headers: {
         'Accept-Language': locale.value,
-        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(body === undefined ? {} : { 'Content-Type': contentType }),
       },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: body === undefined ? undefined : (blob ?? JSON.stringify(body)),
     })
   } catch {
     throw unreachable()

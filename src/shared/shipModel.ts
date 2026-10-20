@@ -3,11 +3,13 @@
 //
 // A ship is layers of primitives. Every primitive is modelled in a unit cube
 // centred on its position, then scaled, rotated (XYZ Euler, radians) and
-// placed. Ships face +Z (their nose) with +Y up.
+// placed. Ships face +Z (their nose) with +Y up. An imported 3D model is
+// fitted into the same unit cube (see models.ts), so it is placed the same way.
 
 import { t } from '@/i18n'
 
-export const PART_TYPES = [
+/** The built-in shapes: every part type but an imported model. */
+export const SHAPE_TYPES = [
   'box',
   'sphere',
   'cylinder',
@@ -21,6 +23,10 @@ export const PART_TYPES = [
   'prism',
   'frustum',
 ] as const
+export type ShapeType = (typeof SHAPE_TYPES)[number]
+
+/** A part of type 'model' shows the imported model its modelId names. */
+export const PART_TYPES = [...SHAPE_TYPES, 'model'] as const
 export type PartType = (typeof PART_TYPES)[number]
 
 /**
@@ -54,6 +60,12 @@ export interface Part {
    * both). Tinted by the color like the built-in textures.
    */
   textureUrl?: string
+  /**
+   * The imported model a part of type 'model' shows (and only those have
+   * one). A model keeps its own look: it has no texture, and its color is
+   * unused.
+   */
+  modelId?: string
   /** Also render the part reflected across the X=0 plane. */
   mirror: boolean
 }
@@ -82,6 +94,8 @@ export const LIMITS = {
   minScale: 0.01,
   maxScale: 50,
   textureUrl: 500,
+  /** Imported models, in MB. Also limited to 100,000 triangles by the server. */
+  modelMegabytes: 4,
 } as const
 
 export function newPart(type: PartType, color = '#9aa7b8'): Part {
@@ -121,6 +135,7 @@ export function countParts(layers: Layer[]): number {
 }
 
 const COLOR = /^#[0-9a-fA-F]{6}$/
+const MODEL_ID = /^[0-9a-fA-F]{24}$/
 
 /**
  * Whether a texture URL is one the server accepts: https, with a host, no
@@ -173,6 +188,12 @@ function partProblem(part: Part): string | null {
   if (part.texture !== undefined && !PART_TEXTURES.includes(part.texture)) {
     return text.unknownTexture(part.texture)
   }
+  if (part.type === 'model') {
+    if (part.modelId === undefined || !MODEL_ID.test(part.modelId)) return text.invalidModelId
+    if (part.texture !== undefined || part.textureUrl !== undefined) return text.modelNoTexture
+  } else if (part.modelId !== undefined) {
+    return text.modelIdOnShape
+  }
   if (part.textureUrl !== undefined) {
     if (part.texture !== undefined) return text.textureAndImage
     if (!isValidTextureUrl(part.textureUrl)) return text.imageLinkRule(LIMITS.textureUrl)
@@ -216,9 +237,10 @@ function length([x, y, z]: Vec3): number {
 
 /**
  * The transform of a part's mirror image across the X=0 plane. Reflecting
- * R = Rx(a)·Ry(b)·Rz(c) through x gives Rx(a)·Ry(-b)·Rz(-c), and every part
- * type is symmetric in its own x, so no negative scale (which would flip the
- * faces inside out) is needed.
+ * R = Rx(a)·Ry(b)·Rz(c) through x gives Rx(a)·Ry(-b)·Rz(-c), and every shape
+ * is symmetric in its own x, so no negative scale (which would flip the
+ * faces inside out) is needed. An imported model needn't be symmetric: its
+ * mirror image also gets its X scale negated (see applyPartTransform).
  */
 export function mirroredTransform(part: Part): { position: Vec3; rotation: Vec3 } {
   const [x, y, z] = part.position
