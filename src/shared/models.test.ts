@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { Box3, BoxGeometry, Group, Matrix4, Mesh, Vector3 } from 'three'
+import {
+  Box3,
+  BoxGeometry,
+  Group,
+  Matrix4,
+  Mesh,
+  Vector3,
+  type Material,
+  type Object3D,
+} from 'three'
 
-import { createModelObject, fitUnitCube, parseModel } from './models'
+import { addLoadedModel, createModelObject, fitUnitCube, parseModel } from './models'
 import { createPartMesh } from './shipMesh'
 import { newPart } from './shipModel'
 
@@ -86,6 +95,25 @@ describe('model parts', () => {
   it('show a placeholder in the unit cube until the model is loaded', () => {
     const object = createModelObject('0123456789abcdef01234567')
     expectInUnitCube(new Box3().setFromObject(object))
+  })
+
+  it('make a model see-through with shared material copies', async () => {
+    const id = 'abcdefabcdefabcdefabcdef'
+    addLoadedModel(id, await parseModel(triangleGlb()))
+    const materials = (object: Object3D) => {
+      const found: Material[] = []
+      object.traverse((o) => {
+        if (o instanceof Mesh) found.push(o.material as Material)
+      })
+      return found
+    }
+    const solid = materials(createModelObject(id))[0]!
+    const glass = materials(createModelObject(id, 0.5))[0]!
+    expect(solid.transparent).toBe(false)
+    expect(glass).not.toBe(solid)
+    expect(glass.opacity).toBeCloseTo(0.5)
+    expect(glass.transparent).toBe(true)
+    expect(materials(createModelObject(id, 0.5))[0]).toBe(glass)
   })
 
   it('mirror a model with a true reflection', () => {

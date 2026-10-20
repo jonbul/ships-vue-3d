@@ -7,8 +7,10 @@ import {
   Group,
   LatheGeometry,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
+  PointLight,
   SphereGeometry,
   TorusGeometry,
   Vector2,
@@ -16,6 +18,7 @@ import {
 
 import {
   PART_TEXTURES,
+  isLight,
   mirroredTransform,
   type Layer,
   type Part,
@@ -32,6 +35,7 @@ import { partTexture, urlTexture } from './textures'
 // same goes for imported models' (models.ts).
 const geometries = new Map<ShapeType, BufferGeometry>()
 const materials = new Map<string, MeshStandardMaterial>()
+const bulbMaterials = new Map<string, MeshBasicMaterial>()
 
 // Segment counts are kept low on purpose: ships are small on screen and the
 // game has to run on phones.
@@ -65,6 +69,8 @@ function createGeometry(type: ShapeType): BufferGeometry {
       return new CylinderGeometry(0.5, 0.5, 1, 6)
     case 'frustum':
       return new CylinderGeometry(0.25, 0.5, 1, 20)
+    case 'light':
+      return new SphereGeometry(0.5, 12, 8)
   }
 }
 
@@ -147,6 +153,7 @@ export function partMaterial(
   color: string,
   texture?: PartTexture,
   textureUrl?: string,
+  opacity = 1,
 ): MeshStandardMaterial {
   // An unknown texture (from a newer client, say) draws the part plain.
   const map = textureUrl
@@ -154,7 +161,9 @@ export function partMaterial(
     : texture && PART_TEXTURES.includes(texture)
       ? partTexture(texture)
       : null
-  const key = !map ? color : textureUrl ? `${color} url ${textureUrl}` : `${color} ${texture}`
+  const look = !map ? color : textureUrl ? `${color} url ${textureUrl}` : `${color} ${texture}`
+  const transparent = opacity < 1
+  const key = transparent ? `${look} opacity ${opacity}` : look
   let material = materials.get(key)
   if (!material) {
     material = new MeshStandardMaterial({
@@ -163,6 +172,11 @@ export function partMaterial(
       roughness: 0.55,
       metalness: 0.25,
       flatShading: true,
+      opacity,
+      transparent,
+      // A see-through part mustn't hide the parts behind it from the depth
+      // test, or they vanish behind it instead of showing through.
+      depthWrite: !transparent,
     })
     if (map) projectTexture(material)
     materials.set(key, material)
@@ -206,17 +220,51 @@ function projectTexture(material: MeshStandardMaterial): void {
   }
 }
 
+/** A light's bulb: unlit, so it glows in its color whatever lights it. */
+function bulbMaterial(color: string): MeshBasicMaterial {
+  let material = bulbMaterials.get(color)
+  if (!material) {
+    material = new MeshBasicMaterial({ color })
+    bulbMaterials.set(color, material)
+  }
+  return material
+}
+
+/**
+ * Candela per unit of a light's intensity, at the editor's scale (a ship
+ * scaled up in game scales its lights to match, see scaleShip). Intensity 1
+ * lights a hull 2 units away about as much as the sun does.
+ */
+const LIGHT_POWER = 6
+
 /**
  * The object for one part, or for its mirror image: a mesh, or for an
- * imported model a group holding it.
+ * imported model a group holding it. With `withLight`, a light's bulb
+ * carries the point light itself as a child, so moving the bulb moves the
+ * light. Every light makes every lit material dearer to draw, so the game
+ * only asks for them on the player's own ship.
  */
-export function createPartMesh(part: Part, mirrored = false): Object3D {
-  const object =
-    part.type === 'model'
-      ? createModelObject(part.modelId ?? '')
-      : new Mesh(partGeometry(part.type), partMaterial(part.color, part.texture, part.textureUrl))
-  applyPartTransform(object, part, mirrored)
-  return object
+export function createPartMesh(part: Part, mirrored = false, withLight = false): Object3D {
+  if (part.type === 'model') {
+    const model = createModelObject(part.modelId ?? '', part.opacity)
+    applyPartTransform(model, part, mirrored)
+    return model
+  }
+  const light = isLight(part)
+  const mesh = new Mesh(
+    partGeometry(part.type),
+    light
+      ? bulbMaterial(part.color)
+      : partMaterial(part.color, part.texture, part.textureUrl, part.opacity),
+  )
+  applyPartTransform(mesh, part, mirrored)
+  if (light && withLight) {
+    const intensity = (part.intensity ?? 1) * LIGHT_POWER
+    const pointLight = new PointLight(part.color, intensity, 0, 2)
+    pointLight.userData.intensity = intensity
+    mesh.add(pointLight)
+  }
+  return mesh
 }
 
 export function applyPartTransform(object: Object3D, part: Part, mirrored = false): void {
@@ -235,14 +283,28 @@ export function applyPartTransform(object: Object3D, part: Part, mirrored = fals
  * that needs disposing (geometries and materials are shared), so dropping it
  * is enough.
  */
-export function buildShip(layers: Layer[]): Group {
+export function buildShip(layers: Layer[], withLights = false): Group {
   const group = new Group()
   for (const layer of layers) {
     if (!layer.visible) continue
     for (const part of layer.parts) {
-      group.add(createPartMesh(part))
-      if (part.mirror) group.add(createPartMesh(part, true))
+      group.add(createPartMesh(part, false, withLights))
+      if (part.mirror) group.add(createPartMesh(part, true, withLights))
     }
   }
   return group
+}
+
+/**
+ * Scales a ship built by buildShip. Its lights get brighter with the square
+ * of the scale, so they light the bigger hull as they lit it in the editor
+ * (light fades with the square of the distance).
+ */
+export function scaleShip(ship: Group, scale: number): void {
+  ship.scale.setScalar(scale)
+  ship.traverse((object) => {
+    if (object instanceof PointLight) {
+      object.intensity = (object.userData.intensity as number) * scale * scale
+    }
+  })
 }

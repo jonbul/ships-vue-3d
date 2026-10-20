@@ -10,7 +10,7 @@ import {
 } from 'three'
 
 import { t } from '@/i18n'
-import { buildShip } from '@/shared/shipMesh'
+import { buildShip, scaleShip } from '@/shared/shipMesh'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
 import { Hud, type Marker, type ScoreRow } from './hud'
@@ -308,7 +308,7 @@ export class Game {
     this.world ??= new World(this.scene, settings.worldRadius)
     for (const player of players) {
       if (player.id === id) {
-        this.me = this.createShip(player)
+        this.me = this.createShip(player, true)
         this.team = player.team ?? null
         this.seat = player.seat ?? null
         // A gunner looks out from inside their own turret.
@@ -380,7 +380,7 @@ export class Game {
   private createMothership(info: MothershipInfo): Mothership {
     const group = new Group()
     const model = buildShip(info.ship.layers)
-    model.scale.setScalar(info.scale)
+    scaleShip(model, info.scale)
     group.add(model)
     this.scene.add(group)
     return {
@@ -532,15 +532,20 @@ export class Game {
 
   // --- Ships -----------------------------------------------------------------
 
-  private createShip(info: PlayerInfo): Ship {
+  /**
+   * `withLights` makes the ship's lights shine, not just glow: only for the
+   * player's own ship, since every light in the scene makes every ship dearer
+   * to draw.
+   */
+  private createShip(info: PlayerInfo, withLights = false): Ship {
     let group: Group
     if (info.seat) {
       // Twice a fighter's size: the mothership is huge next to them.
       group = buildTurret((this.settings?.shipRadius ?? 4) * 2)
     } else {
       group = new Group()
-      const model = buildShip(info.ship.layers)
-      model.scale.setScalar(info.scale)
+      const model = buildShip(info.ship.layers, withLights)
+      scaleShip(model, info.scale)
       group.add(model)
     }
     group.position.fromArray(info.p)

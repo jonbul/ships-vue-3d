@@ -5,6 +5,7 @@ import {
   Group,
   LineBasicMaterial,
   LineSegments,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   Object3D,
@@ -31,7 +32,7 @@ interface Entry {
   state: ModelState
   model: Object3D | null
   /** Parts drawn before the model arrived, to fill in once it has. */
-  waiting: Group[]
+  waiting: { group: Group; opacity: number }[]
 }
 
 const entries = new Map<string, Entry>()
@@ -78,14 +79,17 @@ export function addLoadedModel(id: string, model: Object3D): void {
   settle(entry(id), 'loaded', model)
 }
 
-/** A part's model: a placeholder that the model replaces once loaded. */
-export function createModelObject(id: string): Group {
+/**
+ * A part's model: a placeholder that the model replaces once loaded. Below
+ * an opacity of 1 the model's own materials are made see-through.
+ */
+export function createModelObject(id: string, opacity = 1): Group {
   const group = new Group()
   const current = entry(id)
-  if (current.model) group.add(cloneModel(current.model))
+  if (current.model) group.add(cloneModel(current.model, opacity))
   else {
     group.add(placeholder())
-    if (current.state === 'loading') current.waiting.push(group)
+    if (current.state === 'loading') current.waiting.push({ group, opacity })
   }
   return group
 }
@@ -131,9 +135,9 @@ function settle(target: Entry, state: ModelState, model: Object3D | null): void 
   target.state = state
   target.model = model
   if (model) {
-    for (const group of target.waiting) {
+    for (const { group, opacity } of target.waiting) {
       group.clear()
-      group.add(cloneModel(model))
+      group.add(cloneModel(model, opacity))
     }
   }
   target.waiting = []
@@ -141,9 +145,38 @@ function settle(target: Entry, state: ModelState, model: Object3D | null): void 
   for (const listener of listeners) listener()
 }
 
-/** A copy sharing geometries and materials; skinned meshes keep their bones. */
-function cloneModel(model: Object3D): Object3D {
-  return cloneSkinned(model)
+/**
+ * A copy sharing geometries and materials; skinned meshes keep their bones.
+ * A see-through copy uses see-through copies of the materials, shared too.
+ */
+function cloneModel(model: Object3D, opacity: number): Object3D {
+  const copy = cloneSkinned(model)
+  if (opacity < 1) {
+    copy.traverse((object) => {
+      if (object instanceof Mesh) {
+        object.material = Array.isArray(object.material)
+          ? object.material.map((material) => seeThrough(material, opacity))
+          : seeThrough(object.material, opacity)
+      }
+    })
+  }
+  return copy
+}
+
+const seeThroughMaterials = new Map<string, Material>()
+
+function seeThrough(material: Material, opacity: number): Material {
+  const key = `${material.uuid} ${opacity}`
+  let found = seeThroughMaterials.get(key)
+  if (!found) {
+    found = material.clone()
+    found.opacity = material.opacity * opacity
+    found.transparent = true
+    // As for the shapes (partMaterial): what is behind must show through.
+    found.depthWrite = false
+    seeThroughMaterials.set(key, found)
+  }
+  return found
 }
 
 const placeholderBox = new BoxGeometry(1, 1, 1)

@@ -147,6 +147,10 @@ const es: Messages = {
     modelFailed:
       'No se ha podido cargar el modelo; la pieza se muestra como el contorno de una caja.',
     mirror: 'Simetría izquierda/derecha',
+    intensity: 'Intensidad',
+    opacity: 'Opacidad',
+    lightHint: (lights: number, max: number) =>
+      `Las luces iluminan con su color las piezas de alrededor. Usadas ${lights} de ${max} luces (una luz con simetría cuenta doble).`,
     duplicate: 'Duplicar',
     delete: 'Eliminar',
     noSelection: 'Ninguna pieza seleccionada',
@@ -184,6 +188,7 @@ const es: Messages = {
       prism: 'Prisma hexagonal',
       frustum: 'Cilindro cónico',
       model: 'Modelo 3D',
+      light: 'Luz',
     },
     textures: {
       panels: 'Paneles de casco',
@@ -200,6 +205,8 @@ const es: Messages = {
     needsLayer: 'La nave necesita al menos una capa.',
     tooManyLayers: (max: number) => `Una nave no puede tener más de ${max} capas.`,
     tooManyParts: (max: number) => `Una nave no puede tener más de ${max} piezas.`,
+    tooManyLights: (max: number) =>
+      `Una nave no puede tener más de ${max} luces (una luz con simetría cuenta doble).`,
     layerNameTooLong: (max: number) =>
       `Los nombres de las capas no pueden tener más de ${max} caracteres.`,
     layerProblem: (layer: string, problem: string) => `Capa «${layer}»: ${problem}`,
@@ -215,6 +222,9 @@ const es: Messages = {
     positionRange: (max: number) => `las posiciones deben estar entre -${max} y ${max}.`,
     invalidRotation: 'rotación no válida.',
     sizeRange: (min: number, max: number) => `los tamaños deben estar entre ${min} y ${max}.`,
+    intensityRange: (min: number, max: number) =>
+      `la intensidad de las luces debe estar entre ${min} y ${max}.`,
+    opacityRange: (min: number) => `la opacidad debe estar entre el ${min * 100}% y el 100%.`,
   },
 
   play: {

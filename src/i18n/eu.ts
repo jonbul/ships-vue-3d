@@ -146,6 +146,10 @@ const eu: Messages = {
       'Eredua piezara egokitzen da bere alderik luzeenetik, eta bere kolore eta materialak gordetzen ditu.',
     modelFailed: 'Ezin izan da eredua kargatu; pieza kutxa baten ingerada gisa ikusten da.',
     mirror: 'Ezker-eskuin simetria',
+    intensity: 'Intentsitatea',
+    opacity: 'Opakutasuna',
+    lightHint: (lights: number, max: number) =>
+      `Argiek beren kolorearekin argitzen dituzte inguruko piezak. ${max} argitatik ${lights} erabilita (simetriadun argi batek bi aldiz zenbatzen du).`,
     duplicate: 'Bikoiztu',
     delete: 'Ezabatu',
     noSelection: 'Ez dago piezarik hautatuta',
@@ -183,6 +187,7 @@ const eu: Messages = {
       prism: 'Prisma hexagonala',
       frustum: 'Zilindro konikoa',
       model: '3D eredua',
+      light: 'Argia',
     },
     textures: {
       panels: 'Kasko-panelak',
@@ -199,6 +204,8 @@ const eu: Messages = {
     needsLayer: 'Ontziak geruza bat behar du gutxienez.',
     tooManyLayers: (max: number) => `Ontzi batek ezin ditu ${max} geruza baino gehiago izan.`,
     tooManyParts: (max: number) => `Ontzi batek ezin ditu ${max} pieza baino gehiago izan.`,
+    tooManyLights: (max: number) =>
+      `Ontzi batek ezin ditu ${max} argi baino gehiago izan (simetriadun argi batek bi aldiz zenbatzen du).`,
     layerNameTooLong: (max: number) =>
       `Geruzen izenek ezin dituzte ${max} karaktere baino gehiago izan.`,
     layerProblem: (layer: string, problem: string) => `«${layer}» geruza: ${problem}`,
@@ -215,6 +222,9 @@ const eu: Messages = {
     positionRange: (max: number) => `posizioek -${max} eta ${max} artean egon behar dute.`,
     invalidRotation: 'biraketa baliogabea.',
     sizeRange: (min: number, max: number) => `tamainek ${min} eta ${max} artean egon behar dute.`,
+    intensityRange: (min: number, max: number) =>
+      `argien intentsitateak ${min} eta ${max} artean egon behar du.`,
+    opacityRange: (min: number) => `opakutasunak %${min * 100} eta %100 artean egon behar du.`,
   },
 
   play: {
