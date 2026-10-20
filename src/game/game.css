@@ -470,3 +470,11 @@
   transform: translateX(-50%);
   padding: 0.6rem 1rem;
 }
+
+/* Players we can't shoot: a quieter label, no life bar. */
+.hud-marker.other {
+  color: #ffd180;
+}
+.hud-marker.other .hud-marker-life {
+  display: none;
+}

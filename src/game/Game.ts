@@ -73,6 +73,10 @@ const RADAR_MARGIN = 16
  * throttle): full thrust when this fraction of a second of acceleration away.
  */
 const SPEED_TARGET_RESPONSE = 0.3
+/** A ship's crash sphere, as a fraction of shipRadius (its bounding sphere). */
+const CRASH_RADIUS = 0.7
+/** Milliseconds between crash reports while the server hasn't agreed to one. */
+const CRASH_REPORT_INTERVAL = 250
 
 interface Ship {
   info: PlayerInfo
@@ -150,6 +154,7 @@ export class Game {
   private bulletCounter = 0
   private lastFire = 0
   private lastStateSent = 0
+  private lastCrashReport = 0
 
   // Assault mode. A round's state is cleared by clearRound().
   private readonly assault: boolean
@@ -530,7 +535,8 @@ export class Game {
   private createShip(info: PlayerInfo): Ship {
     let group: Group
     if (info.seat) {
-      group = buildTurret(this.settings?.shipRadius ?? 4)
+      // Twice a fighter's size: the mothership is huge next to them.
+      group = buildTurret((this.settings?.shipRadius ?? 4) * 2)
     } else {
       group = new Group()
       const model = buildShip(info.ship.layers)
@@ -626,6 +632,7 @@ export class Game {
       stepFlight(this.flight, input, settings, dt)
       me.group.position.copy(this.flight.position)
       me.group.quaternion.copy(this.flight.quaternion)
+      this.checkCrash(now, settings)
       if (input.fire && now - this.lastFire >= settings.fireCooldownMs) this.fire(now, settings)
       if (now - this.lastStateSent >= 1000 / settings.tickRate) this.sendState(now)
     } else {
@@ -655,6 +662,30 @@ export class Game {
         mothershipLife: this.mothership.life / this.mothership.maxLife,
       })
     }
+  }
+
+  /**
+   * Running into another ship, or into the mothership, destroys us (and the
+   * other ship). We report it and the server decides: its own record of
+   * where both were must agree, and it sends the deaths. Ship sizes are
+   * their bounding spheres, which overstate most designs, so only a solid
+   * overlap counts.
+   */
+  private checkCrash(now: number, settings: Settings): void {
+    if (now - this.lastCrashReport < CRASH_REPORT_INTERVAL) return
+    const r = settings.shipRadius * CRASH_RADIUS
+    const position = this.flight.position
+    let target: string | null = null
+    if (this.mothership?.hull.sphereHits(position, r)) target = MOTHERSHIP
+    for (const [id, remote] of this.remotes) {
+      if (target) break
+      // Gunners sit in the hull: running into one is running into the hull.
+      if (remote.info.dead || remote.info.seat) continue
+      if (remote.group.position.distanceToSquared(position) <= 4 * r * r) target = id
+    }
+    if (!target) return
+    this.lastCrashReport = now
+    this.connection.send({ type: 'crash', with: target })
   }
 
   /** A gunner: the turret stays in its seat and only turns. */
@@ -824,12 +855,23 @@ export class Game {
 
   private readonly projected = new Vector3()
 
-  /** Screen markers for every live enemy: a label on screen, an arrow at the edge off it. */
+  /**
+   * Screen markers for every live enemy: a label on screen, an arrow at the
+   * edge off it. In the assault, the players we can't shoot (teammates, and
+   * the gunners for an attacker) get a plain label while on screen, so the
+   * gunners can be told apart on the hull.
+   */
   private markers(): Marker[] {
     const width = this.root.clientWidth
     const height = this.root.clientHeight
     const markers: Marker[] = []
-    const targets: Array<{ id: string; name: string; life: number; position: Vector3 }> = []
+    const targets: Array<{
+      id: string
+      name: string
+      life: number
+      position: Vector3
+      other?: boolean
+    }> = []
     if (this.mothership && this.team === 'attackers') {
       targets.push({
         id: MOTHERSHIP,
@@ -839,15 +881,18 @@ export class Game {
       })
     }
     for (const [id, remote] of this.remotes) {
-      if (remote.info.dead || !this.isTarget(remote.info)) continue
+      if (remote.info.dead) continue
+      const other = !this.isTarget(remote.info)
+      if (other && !this.assault) continue
       targets.push({
         id,
-        name: remote.info.name,
+        name: remote.info.seat ? `🛡 ${remote.info.name}` : remote.info.name,
         life: this.settings ? remote.info.life / this.settings.maxLife : 1,
         position: remote.group.position,
+        other,
       })
     }
-    for (const { id, name, life, position } of targets) {
+    for (const { id, name, life, position, other } of targets) {
       const p = this.projected.copy(position)
       p.applyMatrix4(this.camera.matrixWorldInverse)
       const behind = p.z > 0 // Camera space looks down -Z.
@@ -859,6 +904,7 @@ export class Game {
         y = -y
       }
       const onScreen = !behind && Math.abs(x) <= 1 && Math.abs(y) <= 1
+      if (other && !onScreen) continue
       const angle = Math.atan2(-y, x)
       if (!onScreen) {
         // Pin to an ellipse just inside the screen edge.
@@ -873,6 +919,7 @@ export class Game {
         y: ((1 - y) / 2) * height - (onScreen ? 28 : 0),
         onScreen,
         angle,
+        other,
       })
     }
     return markers

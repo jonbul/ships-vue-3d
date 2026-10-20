@@ -38,6 +38,8 @@ export interface Marker {
   onScreen: boolean
   /** For off-screen markers: the direction to the ship, in radians. */
   angle: number
+  /** Not a target: a teammate, or a gunner seen by an attacker. */
+  other?: boolean
 }
 
 const KILL_FEED_SECONDS = 6
@@ -319,6 +321,7 @@ export class Hud {
       if (name.textContent !== marker.name) name.textContent = marker.name
       life.style.setProperty('--life', String(marker.lifeFraction))
       node.classList.toggle('offscreen', !marker.onScreen)
+      node.classList.toggle('other', marker.other === true)
       node.style.transform = `translate(${marker.x}px, ${marker.y}px)`
       arrow.style.transform = `rotate(${marker.angle}rad)`
     }

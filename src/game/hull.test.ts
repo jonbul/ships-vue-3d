@@ -51,6 +51,17 @@ describe('Hull', () => {
     expect(hull.segmentHits(v(5, 1.5, -5), v(5, 1.5, 5))).toBe(false)
   })
 
+  it('tells when a sphere touches it', () => {
+    const hull = new Hull(
+      [{ name: 'Hull', visible: true, parts: [part({ scale: [2, 1, 10] })] }],
+      3,
+    )
+    expect(hull.sphereHits(v(0, 0, 0), 1)).toBe(true)
+    expect(hull.sphereHits(v(0, 3, 10), 1.6)).toBe(true) // 1.5 above the top.
+    expect(hull.sphereHits(v(0, 3, 10), 1.4)).toBe(false)
+    expect(hull.sphereHits(v(0, 0, 17), 1.9)).toBe(false) // 2 past the end.
+  })
+
   it('ignores hidden layers', () => {
     const hull = new Hull([{ name: 'Hidden', visible: false, parts: [part({})] }], 1)
     expect(hull.segmentHits(v(0, 0, -5), v(0, 0, 5))).toBe(false)

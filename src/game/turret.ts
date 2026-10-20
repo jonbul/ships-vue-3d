@@ -24,7 +24,14 @@ export interface Aim {
 // shipMesh.ts: there are only a few, and they outlive any one game.
 const ball = new SphereGeometry(1, 20, 14)
 const barrel = new CylinderGeometry(0.16, 0.2, 2.6, 8).rotateX(Math.PI / 2)
-const ballMaterial = new MeshStandardMaterial({ color: 0x8f959e, roughness: 0.6, metalness: 0.4 })
+// Amber and lit from within, so the turrets stand out against the grey hull.
+const ballMaterial = new MeshStandardMaterial({
+  color: 0xffb74d,
+  emissive: 0xff8f00,
+  emissiveIntensity: 0.35,
+  roughness: 0.5,
+  metalness: 0.3,
+})
 const barrelMaterial = new MeshStandardMaterial({ color: 0x3d4148, roughness: 0.5 })
 
 /**

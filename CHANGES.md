@@ -24,7 +24,15 @@ top of the Play page (the choice is remembered). Needs ships-go-3d 0.6.0.
   and the radar show only what you can shoot (the mothership for attackers,
   the attackers for gunners). The scoreboard adds the team and each
   attacker's hits on the mothership.
+- Gunners' turrets are large amber balls with the gunner's name over them,
+  so they stand out on the hull. Players you can't shoot (teammates, and
+  gunners for an attacker) get a plain amber label while on screen.
 - In English, Spanish and Basque.
+
+Crashes, in both modes: flying into another ship destroys both, and in the
+assault flying into the mothership destroys your ship (the mothership takes
+no damage). Nobody gets a kill for a crash. The game reports the crash and
+the server checks it against where it last saw both ships.
 
 Version 0.5.0 - 2026-10-19
 ------------------

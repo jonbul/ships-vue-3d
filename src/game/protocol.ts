@@ -147,3 +147,5 @@ export type ClientMessage =
   | { type: 'fire'; id: string; p: V3; d: V3 }
   | { type: 'hit'; bulletId: string; target: string }
   | { type: 'respawn' }
+  /** Our ship ran into ship `with`, or into the mothership (MOTHERSHIP). */
+  | { type: 'crash'; with: string }

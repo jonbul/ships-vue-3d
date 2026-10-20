@@ -15,7 +15,8 @@ const size = new Vector3()
  * for a ship that never moves - the mothership, at the origin, unrotated.
  */
 export class Hull {
-  /** World space to each box's unit-cube space. */
+  /** Each box's unit-cube space to world space, and back. */
+  private readonly matrices: Matrix4[] = []
   private readonly inverses: Matrix4[] = []
 
   constructor(layers: Layer[], scale: number) {
@@ -26,12 +27,27 @@ export class Hull {
       rotation.setFromEuler(euler.fromArray([...transform.rotation, 'XYZ']))
       size.fromArray(part.scale)
       const matrix = new Matrix4().compose(position, rotation, size).premultiply(shipScale)
-      this.inverses.push(matrix.invert())
+      this.matrices.push(matrix)
+      this.inverses.push(matrix.clone().invert())
     }
     for (const part of visibleParts(layers)) {
       add(part, false)
       if (part.mirror) add(part, true)
     }
+  }
+
+  /** Whether a sphere touches any part's box: a ship flying into the hull. */
+  sphereHits(center: Vector3, radius: number): boolean {
+    for (let i = 0; i < this.inverses.length; i++) {
+      // The nearest point of the box: clamped in its own space, which only
+      // scales along the box's axes, so clamping there is clamping in the
+      // world too.
+      local.copy(center).applyMatrix4(this.inverses[i]!).clampScalar(-0.5, 0.5)
+      if (local.applyMatrix4(this.matrices[i]!).distanceToSquared(center) <= radius * radius) {
+        return true
+      }
+    }
+    return false
   }
 
   /** Whether the segment a-b passes through any part's box. */
