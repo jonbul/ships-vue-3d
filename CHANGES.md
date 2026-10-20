@@ -1,5 +1,22 @@
 CHANGES
 =======
+Version 0.7.0 - 2026-10-20
+------------------
+Lights and see-through parts in the ship editor. Needs ships-go-3d 0.7.0 to
+save them.
+
+- A new part, the light: add it from "Add part" and place, move and mirror it
+  like any other part. It shows as a glowing bulb (its size sets the bulb's)
+  and shines its color on the parts around it. Pick the color as for any
+  part, and the brightness with the intensity slider (0.1 to 10).
+- A ship can have up to 8 lights; a mirrored light counts twice.
+- In game the lights of your own ship shine on it; on other players' ships
+  they show as glowing bulbs only, which keeps the game smooth on phones.
+- Every other part has an opacity slider, from 5% (almost invisible) to 100%
+  (solid, as before): glass canopies, force fields, windows into the hull.
+- Ship thumbnails show both.
+- In English, Spanish and Basque.
+
 Version 0.6.0 - 2026-10-19
 ------------------
 A new game mode: the assault. Pick it, or the free for all as before, at the

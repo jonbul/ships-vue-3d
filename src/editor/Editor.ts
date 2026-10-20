@@ -164,8 +164,8 @@ export class Editor {
     this.layers.forEach((layer, layerIndex) => {
       if (!layer.visible) return
       layer.parts.forEach((part, partIndex) => {
-        const mesh = createPartMesh(part)
-        const mirror = part.mirror ? createPartMesh(part, true) : null
+        const mesh = createPartMesh(part, false, true)
+        const mirror = part.mirror ? createPartMesh(part, true, true) : null
         this.scene.add(mesh)
         if (mirror) this.scene.add(mirror)
         this.meshes.push({ ref: { layer: layerIndex, part: partIndex }, mesh, mirror })

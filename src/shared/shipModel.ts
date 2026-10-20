@@ -20,6 +20,7 @@ export const PART_TYPES = [
   'tube',
   'prism',
   'frustum',
+  'light',
 ] as const
 export type PartType = (typeof PART_TYPES)[number]
 
@@ -54,6 +55,16 @@ export interface Part {
    * both). Tinted by the color like the built-in textures.
    */
   textureUrl?: string
+  /**
+   * How see-through the part is, from LIMITS.minOpacity to 1. Left out for
+   * an opaque part (and in ships saved before opacity).
+   */
+  opacity?: number
+  /**
+   * A light's brightness, from LIMITS.minIntensity to LIMITS.maxIntensity.
+   * Only lights have it.
+   */
+  intensity?: number
   /** Also render the part reflected across the X=0 plane. */
   mirror: boolean
 }
@@ -82,9 +93,35 @@ export const LIMITS = {
   minScale: 0.01,
   maxScale: 50,
   textureUrl: 500,
+  /** Lights in the whole ship; a mirrored light counts twice. */
+  lights: 8,
+  minIntensity: 0.1,
+  maxIntensity: 10,
+  minOpacity: 0.05,
 } as const
 
+/**
+ * A light is a part like any other: placed, moved and mirrored the same way,
+ * drawn as a glowing bulb (sized by its scale) in its color, and shining that
+ * color with its intensity. It has no texture and is never see-through.
+ */
+export const isLight = (part: Pick<Part, 'type'>) => part.type === 'light'
+
+export const DEFAULT_LIGHT = { color: '#fff1c4', intensity: 2, size: 0.4 } as const
+
 export function newPart(type: PartType, color = '#9aa7b8'): Part {
+  if (type === 'light') {
+    const { size } = DEFAULT_LIGHT
+    return {
+      type,
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [size, size, size],
+      color: DEFAULT_LIGHT.color,
+      intensity: DEFAULT_LIGHT.intensity,
+      mirror: false,
+    }
+  }
   return {
     type,
     position: [0, 0, 0],
@@ -120,6 +157,15 @@ export function countParts(layers: Layer[]): number {
   return layers.reduce((total, layer) => total + layer.parts.length, 0)
 }
 
+/** The lights in every layer, hidden ones too, counting mirror images. */
+export function countLights(layers: Layer[]): number {
+  let lights = 0
+  for (const layer of layers) {
+    for (const part of layer.parts) if (isLight(part)) lights += part.mirror ? 2 : 1
+  }
+  return lights
+}
+
 const COLOR = /^#[0-9a-fA-F]{6}$/
 
 /**
@@ -151,6 +197,7 @@ export function validateProject(project: Project): string[] {
   if (project.layers.length === 0) problems.push(text.needsLayer)
   if (project.layers.length > LIMITS.layers) problems.push(text.tooManyLayers(LIMITS.layers))
   if (countParts(project.layers) > LIMITS.parts) problems.push(text.tooManyParts(LIMITS.parts))
+  if (countLights(project.layers) > LIMITS.lights) problems.push(text.tooManyLights(LIMITS.lights))
   for (const layer of project.layers) {
     if ([...layer.name.trim()].length > LIMITS.layerName) {
       problems.push(text.layerNameTooLong(LIMITS.layerName))
@@ -176,6 +223,22 @@ function partProblem(part: Part): string | null {
   if (part.textureUrl !== undefined) {
     if (part.texture !== undefined) return text.textureAndImage
     if (!isValidTextureUrl(part.textureUrl)) return text.imageLinkRule(LIMITS.textureUrl)
+  }
+  if (part.opacity !== undefined) {
+    if (!Number.isFinite(part.opacity) || part.opacity < LIMITS.minOpacity || part.opacity > 1) {
+      return text.opacityRange(LIMITS.minOpacity)
+    }
+  }
+  if (isLight(part)) {
+    const intensity = part.intensity
+    if (
+      intensity === undefined ||
+      !Number.isFinite(intensity) ||
+      intensity < LIMITS.minIntensity ||
+      intensity > LIMITS.maxIntensity
+    ) {
+      return text.intensityRange(LIMITS.minIntensity, LIMITS.maxIntensity)
+    }
   }
   for (let axis = 0; axis < 3; axis++) {
     const position = part.position[axis]!

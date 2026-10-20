@@ -5,6 +5,7 @@ import {
   LIMITS,
   PART_TEXTURES,
   boundingRadius,
+  countLights,
   mirroredTransform,
   newPart,
   newProject,
@@ -23,6 +24,37 @@ function project(): Project {
 describe('validateProject', () => {
   it('accepts a valid project', () => {
     expect(validateProject(project())).toEqual([])
+  })
+
+  it('accepts a see-through part and a light', () => {
+    const p = project()
+    p.layers[0]!.parts[0]!.opacity = 0.3
+    p.layers[0]!.parts.push(newPart('light'))
+    expect(validateProject(p)).toEqual([])
+  })
+
+  it.each([0, 1.5, NaN])('rejects opacity %s', (opacity) => {
+    const p = project()
+    p.layers[0]!.parts[0]!.opacity = opacity
+    expect(validateProject(p)).toHaveLength(1)
+  })
+
+  it.each([undefined, 0, 11, Infinity])('rejects a light with intensity %s', (intensity) => {
+    const p = project()
+    const light = newPart('light')
+    light.intensity = intensity
+    p.layers[0]!.parts.push(light)
+    expect(validateProject(p)).toHaveLength(1)
+  })
+
+  it('counts a mirrored light twice against the limit of lights', () => {
+    const p = project()
+    const light = { ...newPart('light'), mirror: true }
+    for (let i = 0; i < LIMITS.lights / 2; i++) p.layers[0]!.parts.push(light)
+    expect(countLights(p.layers)).toBe(LIMITS.lights)
+    expect(validateProject(p)).toEqual([])
+    p.layers[0]!.parts.push(newPart('light'))
+    expect(validateProject(p)).toHaveLength(1)
   })
 
   it('accepts an https image link', () => {

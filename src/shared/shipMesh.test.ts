@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { Vector3, type BufferGeometry } from 'three'
+import { PointLight, Vector3, type BufferGeometry } from 'three'
 
-import { partGeometry, partMaterial } from './shipMesh'
-import { PART_TYPES, type PartTexture } from './shipModel'
+import { buildShip, partGeometry, partMaterial, scaleShip } from './shipMesh'
+import { PART_TYPES, newLayer, newPart, type PartTexture } from './shipModel'
 
 function triangles(geometry: BufferGeometry): Vector3[][] {
   const position = geometry.getAttribute('position')
@@ -62,5 +62,42 @@ describe('partMaterial', () => {
 
   it('draws an unknown texture plain', () => {
     expect(partMaterial('#445566', 'marble' as PartTexture)).toBe(partMaterial('#445566'))
+  })
+})
+
+describe('opacity', () => {
+  it('makes a see-through material of its own', () => {
+    const material = partMaterial('#112233', undefined, undefined, 0.4)
+    expect(material).not.toBe(partMaterial('#112233'))
+    expect(material.transparent).toBe(true)
+    expect(material.opacity).toBe(0.4)
+    expect(partMaterial('#112233').transparent).toBe(false)
+  })
+})
+
+describe('lights', () => {
+  const layers = () => {
+    const layer = newLayer('Hull')
+    layer.parts.push(newPart('box'), { ...newPart('light'), mirror: true })
+    return [layer]
+  }
+  const lights = (ship: ReturnType<typeof buildShip>) => {
+    const found: PointLight[] = []
+    ship.traverse((object) => {
+      if (object instanceof PointLight) found.push(object)
+    })
+    return found
+  }
+
+  it('only shine when asked for', () => {
+    expect(lights(buildShip(layers()))).toHaveLength(0)
+    expect(lights(buildShip(layers(), true))).toHaveLength(2)
+  })
+
+  it('get brighter with the square of the ship scale', () => {
+    const ship = buildShip(layers(), true)
+    const before = lights(ship)[0]!.intensity
+    scaleShip(ship, 3)
+    expect(lights(ship)[0]!.intensity).toBeCloseTo(before * 9)
   })
 })

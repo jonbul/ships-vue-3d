@@ -47,7 +47,7 @@ export function shipThumbnail(layers: Layer[]): string {
   if (cached) return cached
 
   const r = setup()
-  const ship = buildShip(layers)
+  const ship = buildShip(layers, true)
   scene.add(ship)
 
   const bounds = new Box3().setFromObject(ship)
